@@ -12,17 +12,19 @@ pub mod time_locked_wallet {
         amount: u64,
         unlock_timestamp: i64
         authority: Pubkey,
+        seed: u64,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
-    //  vault.authority = ctx.accounts.authority.key();      change: use parameter instead of signer
-        vault.authority = authority; 
+    //  vault.authority = ctx.accounts.authority.key();      
+        vault.authority = authority;               //change: use parameter instead of signer
+        vault.creator = ctx.accounts.creator.key();
         vault.amount = amount;
         vault.unlock_timestamp = unlock_timestamp;
         vault.bump = ctx.bumps.vault;
 
-        // Transfer SOL from user to vault PDA
+        // Transfer SOL from creator to vault PDA
         let transfer_instruction = system_program::Transfer {
-            from: ctx.accounts.authority.to_account_info(),
+            from: ctx.accounts.creator.to_account_info(),
             to: ctx.accounts.vault.to_account_info(),
         };
 
@@ -37,7 +39,10 @@ pub mod time_locked_wallet {
         Ok(())
     }
 
-    pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
+    pub fn withdraw(
+        ctx: Context<Withdraw>
+        seed: u64
+    ) -> Result<()> {
         let vault = &ctx.accounts.vault;
         let current_time = Clock::get()?.unix_timestamp;
 
@@ -99,8 +104,10 @@ pub struct InitializeLock<'info> {
 pub struct Withdraw<'info> {
     #[account(
         mut,
-        seeds = [b"vault", 
+        seeds = [
+        b"vault", 
         vault.creator.as_ref(),
+        &seed.to_le_bytes()
         ],
         bump = vault.bump
     )]
