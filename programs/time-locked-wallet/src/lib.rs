@@ -81,8 +81,8 @@ pub struct InitializeLock<'info> {
         seeds = [
             b"vault", 
             //use creator instead of authority
-            reator.key().as_ref()
-            &Clock::get()?.unix_timestamp.to_le_bytes() //better identifier
+            creator.key().as_ref()
+            &Clock::get()?.unix_timestamp.to_le_bytes() //unique identifier
             ],
         bump
     )]
