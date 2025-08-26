@@ -11,9 +11,11 @@ pub mod time_locked_wallet {
         ctx: Context<InitializeLock>,
         amount: u64,
         unlock_timestamp: i64
+        authority: Pubkey,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
-        vault.authority = ctx.accounts.authority.key();
+    //  vault.authority = ctx.accounts.authority.key();      change: use parameter instead of signer
+        vault.authority = authority; 
         vault.amount = amount;
         vault.unlock_timestamp = unlock_timestamp;
         vault.bump = ctx.bumps.vault;
@@ -70,27 +72,36 @@ pub mod time_locked_wallet {
 }
 
 #[derive(Accounts)]
+#[instruction(amount: u64, unlock_timestamp: i64, authority: Pubkey)]  //Seperate creator and authority
 pub struct InitializeLock<'info> {
     #[account(
         init,
         payer = authority,
         space = TimeLock::LEN,
-        seeds = [b"vault", authority.key().as_ref()],
+        seeds = [
+            b"vault", 
+            //use creator instead of authority
+            reator.key().as_ref()
+            &Clock::get()?.unix_timestamp.to_le_bytes() //better identifier
+            ],
         bump
     )]
     pub vault: Account<'info, TimeLock>,
 
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub creator: Signer<'info>,  //rename
 
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
+#[instruction(unlock_timestamp: i64)]
 pub struct Withdraw<'info> {
     #[account(
         mut,
-        seeds = [b"vault", authority.key().as_ref()],
+        seeds = [b"vault", 
+        vault.creator.as_ref(),
+        ],
         bump = vault.bump
     )]
     pub vault: Account<'info, TimeLock>,
@@ -104,7 +115,8 @@ pub struct Withdraw<'info> {
 
 #[account]
 pub struct TimeLock {
-    pub authority: Pubkey,
+    pub creator: Pubkey,      //Who created and funded
+    pub authority: Pubkey,    //Who can withdraw
     pub amount: u64,
     pub unlock_timestamp: i64,
     pub bump: u8,
