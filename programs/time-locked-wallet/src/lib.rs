@@ -76,13 +76,13 @@ pub mod time_locked_wallet {
 pub struct InitializeLock<'info> {
     #[account(
         init,
-        payer = authority,
+        payer = creator,
         space = TimeLock::LEN,
         seeds = [
             b"vault", 
             //use creator instead of authority
             creator.key().as_ref()
-            &Clock::get()?.unix_timestamp.to_le_bytes() //unique identifier
+            &seed.to_le_bytes() //unique identifier
             ],
         bump
     )]
