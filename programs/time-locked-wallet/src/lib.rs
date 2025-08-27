@@ -10,74 +10,74 @@ pub mod time_locked_wallet {
     pub fn initialize_lock(
         ctx: Context<InitializeLock>,
         amount: u64,
-        unlock_timestamp: i64
-        authority: Pubkey,
+        unlock_timestamp: i64,
+        authority: Option<Pubkey>,  
+        receiver: Pubkey,  
         seed: u64,
     ) -> Result<()> {
+        // validate input
+        require!(amount > 0, TimeLockError::InvalidAmount);
+        let now = Clock::get()?.unix_timestamp;
+        require!(unlock_timestamp > now, TimeLockError::InvalidUnlockTime);
+        
         let vault = &mut ctx.accounts.vault;
-    //  vault.authority = ctx.accounts.authority.key();      
-        vault.authority = authority;               //change: use parameter instead of signer
-        vault.creator = ctx.accounts.creator.key();
+        vault.authority = authority;                //change: use parameter instead of signer
+        vault.creator = ctx.accounts.creator.key();  
+        vault.receiver = receiver;                  //for logging
         vault.amount = amount;
         vault.unlock_timestamp = unlock_timestamp;
         vault.bump = ctx.bumps.vault;
 
         // Transfer SOL from creator to vault PDA
-        let transfer_instruction = system_program::Transfer {
-            from: ctx.accounts.creator.to_account_info(),
-            to: ctx.accounts.vault.to_account_info(),
-        };
-
         let cpi_ctx = CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
-            transfer_instruction,
+            system_program::Transfer {
+                from: ctx.accounts.creator.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
         );
-
         system_program::transfer(cpi_ctx, amount)?;
 
-        msg!("Time lock created: {} lamports locked until timestamp {}", amount, unlock_timestamp);
+        msg!("Initialized vault:");
+        msg!("  creator: {}", vault.creator);
+        msg!("  authority: {:?}", vault.authority);
+        msg!("  receiver: {}", vault.receiver);
+        msg!("  amount: {}", vault.amount);
+        msg!("  unlock_timestamp: {}", vault.unlock_timestamp);
+        msg!("  seed: {}", seed);
+
         Ok(())
     }
 
     pub fn withdraw(
-        ctx: Context<Withdraw>
+        ctx: Context<Withdraw>,
         seed: u64
     ) -> Result<()> {
         let vault = &ctx.accounts.vault;
-        let current_time = Clock::get()?.unix_timestamp;
+        let now = Clock::get()?.unix_timestamp;
 
         // Check if unlock time has passed
-        require!(
-            current_time >= vault.unlock_timestamp,
-            TimeLockError::StillLocked
-        );
-
-        // Verify authority
-        require!(
-            vault.authority == ctx.accounts.authority.key(),
-            TimeLockError::Unauthorized
-        );
+        require!(now >= vault.unlock_timestamp, TimeLockError::StillLocked);
 
         let amount = vault.amount;
+        require!(amount > 0, TimeLockError::NothingToWithdraw);     //not really necessary
 
-        // Check if vault has enough balance
+        // Check if vault has enough balance (need a new function to fix the amount)
         let vault_balance = ctx.accounts.vault.to_account_info().lamports();
-        require!(
-            vault_balance >= amount,
-            TimeLockError::InsufficientFunds
-        );
+        require!(vault_balance >= amount, TimeLockError::InsufficientFunds);
 
-        // Transfer SOL from vault PDA to recipient
+        // Transfer SOL from vault PDA to receiver
         **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= amount;
-        **ctx.accounts.recipient.to_account_info().try_borrow_mut_lamports()? += amount;
+        **ctx.accounts.receiver.to_account_info().try_borrow_mut_lamports()? += amount;
+        vault.amount = 0;
 
-        msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.recipient.key());
+        msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, unlock_timestamp: i64, authority: Pubkey)]  //Seperate creator and authority
+#[instruction(amount: u64, unlock_timestamp: i64, authority: Option<Pubkey>, receiver: Pubkey, seed: u64)]  //Seperate creator and authority
 pub struct InitializeLock<'info> {
     #[account(
         init,
@@ -86,7 +86,7 @@ pub struct InitializeLock<'info> {
         seeds = [
             b"vault", 
             //use creator instead of authority
-            creator.key().as_ref()
+            creator.key().as_ref(),
             &seed.to_le_bytes() //unique identifier
             ],
         bump
@@ -94,55 +94,67 @@ pub struct InitializeLock<'info> {
     pub vault: Account<'info, TimeLock>,
 
     #[account(mut)]
-    pub creator: Signer<'info>,  //rename
+    pub creator: Signer<'info>,  //Important: Signer = creator
 
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-#[instruction(unlock_timestamp: i64)]
+#[instruction(seed: u64)]
 pub struct Withdraw<'info> {
     #[account(
         mut,
         seeds = [
-        b"vault", 
-        vault.creator.as_ref(),
-        &seed.to_le_bytes()
+            b"vault",
+            vault.creator.as_ref(),
+            &seed.to_le_bytes(),
         ],
-        bump = vault.bump
+        bump = vault.bump,
+        close = creator_account
     )]
     pub vault: Account<'info, TimeLock>,
 
-    pub authority: Signer<'info>,
+    // This is the receiver account that will receive the Fund
+    #[account(mut, address = vault.receiver)]
+    pub receiver: Signer<'info>,
 
-    /// CHECK: This is the recipient account that will receive the SOL
-    #[account(mut)]
-    pub recipient: AccountInfo<'info>,
+    // This is the creator account that will receive the rent refund
+        #[account(mut, address = vault.creator)]
+    pub creator_account: SystemAccount<'info>,
 }
 
 #[account]
 pub struct TimeLock {
     pub creator: Pubkey,      //Who created and funded
-    pub authority: Pubkey,    //Who can withdraw
+    pub authority: Option<Pubkey>,    //Who have admin right
+    pub receiver: Pubkey,
     pub amount: u64,
     pub unlock_timestamp: i64,
     pub bump: u8,
 }
-
 impl TimeLock {
-    pub const LEN: usize = 8 + // discriminator
-        32 + // authority (Pubkey)
-        8 + // amount (u64)
-        8 + // unlock_timestamp (i64)
-        1; // bump
+    pub const LEN: usize = 8    // discriminator
+        + 32                    // creator pubkey
+        + 1 + 32                // authority: Option<Pubkey>
+        + 32                    // receiver: Pubkey
+        + 8                     // amount: u64
+        + 8                     // unlock_timestamp: i64
+        + 1;                    // bump: u8
 }
+
 
 #[error_code]
 pub enum TimeLockError {
-    #[msg("Unauthorized: Only the authority can perform this action")]
+    #[msg("Unauthorized: Only the receiver can perform this action")]
     Unauthorized,
     #[msg("Insufficient funds in time lock")]
     InsufficientFunds,
     #[msg("Funds are still locked until unlock timestamp")]
     StillLocked,
+    #[msg("Invalid amount")]
+    InvalidAmount,
+    #[msg("Invalid unlock timestamp")]
+    InvalidUnlockTime,
+    #[msg("Nothing to withdraw")]
+    NothingToWithdraw,
 }
