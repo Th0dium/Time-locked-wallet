@@ -1,13 +1,19 @@
 "use client";
 
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import './globals.css'
+import { ReactNode } from 'react'
+import { Providers } from '../providers'
+import Header from '../components/Header'
 
-export default function HomePage() {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <div style={{ textAlign: "center", marginTop: "2rem" }}>
-      <h2>Welcome to Time Locked Wallet dApp</h2>
-      <p>Connect your wallet to get started.</p>
-      <WalletMultiButton />
-    </div>
-  );
+    <html lang="en">
+      <body>
+        <Providers>
+          <Header />
+          {children}
+        </Providers>
+      </body>
+    </html>
+  )
 }
