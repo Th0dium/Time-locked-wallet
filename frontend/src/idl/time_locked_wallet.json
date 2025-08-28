@@ -1,0 +1,73 @@
+{
+  "version": "0.1.0",
+  "name": "time_locked_wallet",
+  "instructions": [
+    {
+      "name": "initializeLock",
+      "accounts": [
+        { "name": "vault", "isMut": true, "isSigner": false },
+        { "name": "creator", "isMut": true, "isSigner": true },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "unlockTimestamp", "type": "i64" },
+        { "name": "authority", "type": { "option": "publicKey" } },
+        { "name": "receiver", "type": "publicKey" },
+        { "name": "seed", "type": "u64" },
+        { "name": "authorityRights", "type": "u8" }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "accounts": [
+        { "name": "vault", "isMut": true, "isSigner": false },
+        { "name": "receiver", "isMut": true, "isSigner": true },
+        { "name": "creatorAccount", "isMut": true, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "setReceiver",
+      "accounts": [
+        { "name": "vault", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "newReceiver", "type": "publicKey" }
+      ]
+    },
+    {
+      "name": "setDuration",
+      "accounts": [
+        { "name": "vault", "isMut": true, "isSigner": false },
+        { "name": "authority", "isMut": false, "isSigner": true }
+      ],
+      "args": [
+        { "name": "newUnlockTimestamp", "type": "i64" }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "timeLock",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "creator", "type": "publicKey" },
+          { "name": "authority", "type": { "option": "publicKey" } },
+          { "name": "receiver", "type": "publicKey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "unlockTimestamp", "type": "i64" },
+          { "name": "seed", "type": "u64" },
+          { "name": "authorityRights", "type": "u8" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "address": "8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB"
+  }
+}
+
