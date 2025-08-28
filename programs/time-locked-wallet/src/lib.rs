@@ -74,6 +74,52 @@ pub mod time_locked_wallet {
         msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
         Ok(())
     }
+
+    // Authority-only: update the receiver address
+    pub fn set_receiver(
+        ctx: Context<SetReceiver>,
+        new_receiver: Pubkey,
+        seed: u64,
+    ) -> Result<()> {
+        let vault = &mut ctx.accounts.vault;
+
+        // No fallback: if authority is None, no one can modify
+        require!(
+            vault.authority == Some(ctx.accounts.authority.key()),
+            TimeLockError::OnlyAuthority
+        );
+
+        vault.receiver = new_receiver;
+        msg!(
+            "Receiver updated by authority {} to {}",
+            ctx.accounts.authority.key(),
+            vault.receiver
+        );
+        Ok(())
+    }
+
+    // Authority-only: update the unlock timestamp
+    pub fn set_duration(
+        ctx: Context<SetDuration>,
+        new_unlock_timestamp: i64,
+        seed: u64,
+    ) -> Result<()> {
+        let vault = &mut ctx.accounts.vault;
+
+        // No fallback: if authority is None, no one can modify
+        require!(
+            vault.authority == Some(ctx.accounts.authority.key()),
+            TimeLockError::OnlyAuthority
+        );
+
+        vault.unlock_timestamp = new_unlock_timestamp;
+        msg!(
+            "Unlock timestamp updated by authority {} to {}",
+            ctx.accounts.authority.key(),
+            vault.unlock_timestamp
+        );
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -123,6 +169,41 @@ pub struct Withdraw<'info> {
     pub creator_account: SystemAccount<'info>,
 }
 
+#[derive(Accounts)]
+#[instruction(new_receiver: Pubkey, seed: u64)]
+pub struct SetReceiver<'info> {
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            vault.creator.as_ref(),
+            &seed.to_le_bytes(),
+        ],
+        bump = vault.bump,
+    )]
+    pub vault: Account<'info, TimeLock>,
+
+    // Must match vault.authority (checked in handler)
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(new_unlock_timestamp: i64, seed: u64)]
+pub struct SetDuration<'info> {
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            vault.creator.as_ref(),
+            &seed.to_le_bytes(),
+        ],
+        bump = vault.bump,
+    )]
+    pub vault: Account<'info, TimeLock>,
+
+    // Must match vault.authority (checked in handler)
+    pub authority: Signer<'info>,
+}
 #[account]
 pub struct TimeLock {
     pub creator: Pubkey,      //Who created and funded
@@ -146,7 +227,9 @@ impl TimeLock {
 #[error_code]
 pub enum TimeLockError {
     #[msg("Unauthorized: Only the receiver can perform this action")]
-    Unauthorized,
+    NotReceiver,``
+    #[msg("Only the authority can perform this action")]
+    OnlyAuthority,
     #[msg("Insufficient funds in time lock")]
     InsufficientFunds,
     #[msg("Funds are still locked until unlock timestamp")]
