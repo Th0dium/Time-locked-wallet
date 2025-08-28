@@ -14,12 +14,18 @@ pub mod time_locked_wallet {
         authority: Option<Pubkey>,  
         receiver: Pubkey,  
         seed: u64,
+        authority_rights: u8,
     ) -> Result<()> {
         // validate input
         require!(amount > 0, TimeLockError::InvalidAmount);
         let now = Clock::get()?.unix_timestamp;
         require!(unlock_timestamp > now, TimeLockError::InvalidUnlockTime);
-        
+        // If there is no authority, rights must be zero
+        require!(
+            authority.is_some() || authority_rights == 0,
+            TimeLockError::AuthorityRightsWithoutAuthority
+        );
+
         let vault = &mut ctx.accounts.vault;
         vault.authority = authority;                //change: use parameter instead of signer
         vault.creator = ctx.accounts.creator.key();  
@@ -27,6 +33,7 @@ pub mod time_locked_wallet {
         vault.amount = amount;
         vault.unlock_timestamp = unlock_timestamp;
         vault.seed = seed;                          //seed from FE
+        vault.authority_rights = authority_rights;  //bitmask rights
         vault.bump = ctx.bumps.vault;
 
         // Transfer SOL from creator to vault PDA
@@ -46,6 +53,7 @@ pub mod time_locked_wallet {
         msg!("  amount: {}", vault.amount);
         msg!("  unlock_timestamp: {}", vault.unlock_timestamp);
         msg!("  seed: {}", seed);
+        msg!("  authority_rights: {}", authority_rights);
 
         Ok(())
     }
@@ -82,10 +90,16 @@ pub mod time_locked_wallet {
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
 
-        // No fallback: if authority is None, no one can modify
+        // Verify authority
         require!(
             vault.authority == Some(ctx.accounts.authority.key()),
             TimeLockError::OnlyAuthority
+        );
+
+        // Check authority_right
+        require!(
+            (vault.authority_rights & 0b0000_0001) != 0,
+            TimeLockError::AuthorityMissingRight
         );
 
         vault.receiver = new_receiver;
@@ -110,6 +124,12 @@ pub mod time_locked_wallet {
             TimeLockError::OnlyAuthority
         );
 
+        // Require right bit 1 (2)
+        require!(
+            (vault.authority_rights & 0b0000_0010) != 0,
+            TimeLockError::AuthorityMissingRight
+        );
+
         vault.unlock_timestamp = new_unlock_timestamp;
         msg!(
             "Unlock timestamp updated by authority {} to {}",
@@ -121,7 +141,7 @@ pub mod time_locked_wallet {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, unlock_timestamp: i64, authority: Option<Pubkey>, receiver: Pubkey, seed: u64)]  //Seperate creator and authority
+#[instruction(amount: u64, unlock_timestamp: i64, authority: Option<Pubkey>, receiver: Pubkey, seed: u64, authority_rights: u8)]  //Seperate creator and authority
 pub struct InitializeLock<'info> {
     #[account(
         init,
@@ -209,6 +229,7 @@ pub struct TimeLock {
     pub amount: u64,
     pub unlock_timestamp: i64,
     pub seed: u64,
+    pub authority_rights: u8, // bitmask: 1=set_receiver, 2=set_duration
     pub bump: u8,
 }
 impl TimeLock {
@@ -219,6 +240,7 @@ impl TimeLock {
         + 8                     // amount: u64
         + 8                     // unlock_timestamp: i64
         + 8                     // seed: u64
+        + 1                     // authority_rights: u8
         + 1;                    // bump: u8
 }
 
@@ -226,9 +248,11 @@ impl TimeLock {
 #[error_code]
 pub enum TimeLockError {
     #[msg("Unauthorized: Only the receiver can perform this action")]
-    NotReceiver,``
+    Unauthorized,
     #[msg("Only the authority can perform this action")]
     OnlyAuthority,
+    #[msg("Authority lacks required right for this action")]
+    AuthorityMissingRight,
     #[msg("Insufficient funds in time lock")]
     InsufficientFunds,
     #[msg("Funds are still locked until unlock timestamp")]
@@ -239,4 +263,6 @@ pub enum TimeLockError {
     InvalidUnlockTime,
     #[msg("Nothing to withdraw")]
     NothingToWithdraw,
+    #[msg("authority_rights must be 0 when authority is None")]
+    AuthorityRightsWithoutAuthority,
 }
