@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-declare_id!("8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB");
+declare_id!("4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb");
 
 #[program]
 pub mod time_locked_wallet {
@@ -41,7 +41,7 @@ pub mod time_locked_wallet {
             ctx.accounts.system_program.to_account_info(),
             system_program::Transfer {
                 from: ctx.accounts.creator.to_account_info(),
-                to: ctx.accounts.vault.to_account_info(),
+                to: vault.to_account_info(),
             },
         );
         system_program::transfer(cpi_ctx, amount)?;
@@ -61,7 +61,7 @@ pub mod time_locked_wallet {
     pub fn withdraw(
         ctx: Context<Withdraw>,
     ) -> Result<()> {
-        let vault = &ctx.accounts.vault;
+        let vault = &mut ctx.accounts.vault;
         let now = Clock::get()?.unix_timestamp;
 
         // Check if unlock time has passed
@@ -71,12 +71,14 @@ pub mod time_locked_wallet {
         require!(amount > 0, TimeLockError::NothingToWithdraw);     //not really necessary
 
         // Check if vault has enough balance (need a new function to fix the amount)
-        let vault_balance = ctx.accounts.vault.to_account_info().lamports();
+        let vault_balance = vault.to_account_info().lamports();
         require!(vault_balance >= amount, TimeLockError::InsufficientFunds);
 
         // Transfer SOL from vault PDA to receiver
-        **ctx.accounts.vault.to_account_info().try_borrow_mut_lamports()? -= amount;
-        **ctx.accounts.receiver.to_account_info().try_borrow_mut_lamports()? += amount;
+        let mut vault_ai = vault.to_account_info();
+        let mut receiver_ai = ctx.accounts.receiver.to_account_info();
+        **vault_ai.try_borrow_mut_lamports()? -= amount;
+        **receiver_ai.try_borrow_mut_lamports()? += amount;
         vault.amount = 0;
 
         msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
