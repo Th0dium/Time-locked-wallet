@@ -26,6 +26,7 @@ pub mod time_locked_wallet {
         vault.receiver = receiver;                  //for logging
         vault.amount = amount;
         vault.unlock_timestamp = unlock_timestamp;
+        vault.seed = seed;                          //seed from FE
         vault.bump = ctx.bumps.vault;
 
         // Transfer SOL from creator to vault PDA
@@ -51,7 +52,6 @@ pub mod time_locked_wallet {
 
     pub fn withdraw(
         ctx: Context<Withdraw>,
-        seed: u64
     ) -> Result<()> {
         let vault = &ctx.accounts.vault;
         let now = Clock::get()?.unix_timestamp;
@@ -79,7 +79,6 @@ pub mod time_locked_wallet {
     pub fn set_receiver(
         ctx: Context<SetReceiver>,
         new_receiver: Pubkey,
-        seed: u64,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
 
@@ -102,7 +101,6 @@ pub mod time_locked_wallet {
     pub fn set_duration(
         ctx: Context<SetDuration>,
         new_unlock_timestamp: i64,
-        seed: u64,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
 
@@ -146,14 +144,13 @@ pub struct InitializeLock<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(seed: u64)]
 pub struct Withdraw<'info> {
     #[account(
         mut,
         seeds = [
             b"vault",
             vault.creator.as_ref(),
-            &seed.to_le_bytes(),
+            &vault.seed.to_le_bytes(),
         ],
         bump = vault.bump,
         close = creator_account
@@ -170,14 +167,14 @@ pub struct Withdraw<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(new_receiver: Pubkey, seed: u64)]
+#[instruction(new_receiver: Pubkey)]
 pub struct SetReceiver<'info> {
     #[account(
         mut,
         seeds = [
             b"vault",
             vault.creator.as_ref(),
-            &seed.to_le_bytes(),
+            &vault.seed.to_le_bytes(),
         ],
         bump = vault.bump,
     )]
@@ -188,14 +185,14 @@ pub struct SetReceiver<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(new_unlock_timestamp: i64, seed: u64)]
+#[instruction(new_unlock_timestamp: i64)]
 pub struct SetDuration<'info> {
     #[account(
         mut,
         seeds = [
             b"vault",
             vault.creator.as_ref(),
-            &seed.to_le_bytes(),
+            &vault.seed.to_le_bytes(),
         ],
         bump = vault.bump,
     )]
@@ -211,6 +208,7 @@ pub struct TimeLock {
     pub receiver: Pubkey,
     pub amount: u64,
     pub unlock_timestamp: i64,
+    pub seed: u64,
     pub bump: u8,
 }
 impl TimeLock {
@@ -220,6 +218,7 @@ impl TimeLock {
         + 32                    // receiver: Pubkey
         + 8                     // amount: u64
         + 8                     // unlock_timestamp: i64
+        + 8                     // seed: u64
         + 1;                    // bump: u8
 }
 
