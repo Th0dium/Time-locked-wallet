@@ -1,73 +1,354 @@
 {
-  "version": "0.1.0",
-  "name": "time_locked_wallet",
+  "address": "4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb",
+  "metadata": {
+    "name": "time_locked_wallet",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
   "instructions": [
     {
-      "name": "initializeLock",
+      "name": "initialize_lock",
+      "discriminator": [
+        182,
+        214,
+        195,
+        105,
+        58,
+        73,
+        81,
+        124
+      ],
       "accounts": [
-        { "name": "vault", "isMut": true, "isSigner": false },
-        { "name": "creator", "isMut": true, "isSigner": true },
-        { "name": "systemProgram", "isMut": false, "isSigner": false }
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
       ],
       "args": [
-        { "name": "amount", "type": "u64" },
-        { "name": "unlockTimestamp", "type": "i64" },
-        { "name": "authority", "type": { "option": "publicKey" } },
-        { "name": "receiver", "type": "publicKey" },
-        { "name": "seed", "type": "u64" },
-        { "name": "authorityRights", "type": "u8" }
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "unlock_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "authority",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "receiver",
+          "type": "pubkey"
+        },
+        {
+          "name": "seed",
+          "type": "u64"
+        },
+        {
+          "name": "authority_rights",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "set_duration",
+      "discriminator": [
+        28,
+        157,
+        247,
+        166,
+        68,
+        185,
+        230,
+        238
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.creator",
+                "account": "TimeLock"
+              },
+              {
+                "kind": "account",
+                "path": "vault.seed",
+                "account": "TimeLock"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_unlock_timestamp",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_receiver",
+      "discriminator": [
+        181,
+        228,
+        147,
+        90,
+        231,
+        100,
+        32,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.creator",
+                "account": "TimeLock"
+              },
+              {
+                "kind": "account",
+                "path": "vault.seed",
+                "account": "TimeLock"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_receiver",
+          "type": "pubkey"
+        }
       ]
     },
     {
       "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
       "accounts": [
-        { "name": "vault", "isMut": true, "isSigner": false },
-        { "name": "receiver", "isMut": true, "isSigner": true },
-        { "name": "creatorAccount", "isMut": true, "isSigner": false }
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.creator",
+                "account": "TimeLock"
+              },
+              {
+                "kind": "account",
+                "path": "vault.seed",
+                "account": "TimeLock"
+              }
+            ]
+          }
+        },
+        {
+          "name": "receiver",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator_account",
+          "writable": true
+        }
       ],
       "args": []
-    },
-    {
-      "name": "setReceiver",
-      "accounts": [
-        { "name": "vault", "isMut": true, "isSigner": false },
-        { "name": "authority", "isMut": false, "isSigner": true }
-      ],
-      "args": [
-        { "name": "newReceiver", "type": "publicKey" }
-      ]
-    },
-    {
-      "name": "setDuration",
-      "accounts": [
-        { "name": "vault", "isMut": true, "isSigner": false },
-        { "name": "authority", "isMut": false, "isSigner": true }
-      ],
-      "args": [
-        { "name": "newUnlockTimestamp", "type": "i64" }
-      ]
     }
   ],
   "accounts": [
     {
-      "name": "timeLock",
+      "name": "TimeLock",
+      "discriminator": [
+        254,
+        6,
+        114,
+        1,
+        127,
+        220,
+        253,
+        110
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: Only the receiver can perform this action"
+    },
+    {
+      "code": 6001,
+      "name": "OnlyAuthority",
+      "msg": "Only the authority can perform this action"
+    },
+    {
+      "code": 6002,
+      "name": "AuthorityMissingRight",
+      "msg": "Authority lacks required right for this action"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds in time lock"
+    },
+    {
+      "code": 6004,
+      "name": "StillLocked",
+      "msg": "Funds are still locked until unlock timestamp"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidUnlockTime",
+      "msg": "Invalid unlock timestamp"
+    },
+    {
+      "code": 6007,
+      "name": "NothingToWithdraw",
+      "msg": "Nothing to withdraw"
+    },
+    {
+      "code": 6008,
+      "name": "AuthorityRightsWithoutAuthority",
+      "msg": "authority_rights must be 0 when authority is None"
+    }
+  ],
+  "types": [
+    {
+      "name": "TimeLock",
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "creator", "type": "publicKey" },
-          { "name": "authority", "type": { "option": "publicKey" } },
-          { "name": "receiver", "type": "publicKey" },
-          { "name": "amount", "type": "u64" },
-          { "name": "unlockTimestamp", "type": "i64" },
-          { "name": "seed", "type": "u64" },
-          { "name": "authorityRights", "type": "u8" },
-          { "name": "bump", "type": "u8" }
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "receiver",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "unlock_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "seed",
+            "type": "u64"
+          },
+          {
+            "name": "authority_rights",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
     }
-  ],
-  "metadata": {
-    "address": "8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB"
-  }
+  ]
 }
-

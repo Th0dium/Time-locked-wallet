@@ -1,13 +1,13 @@
 "use client";
 
-import { AnchorProvider, BN, Idl, Program } from "@coral-xyz/anchor";
+import { AnchorProvider, Idl, Program } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import idl from "../idl/time_locked_wallet.json";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
-export const PROGRAM_ID = new PublicKey(
-  (idl as any).metadata?.address || "8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB"
-);
+// Single source of truth for program ID to avoid IDL/address mismatches
+export const PROGRAM_ID = new PublicKey("4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb");
 
 export const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
 
@@ -26,7 +26,10 @@ export function getProvider(wallet: WalletContextState): AnchorProvider {
 
 export function getProgram(wallet: WalletContextState) {
   const provider = getProvider(wallet);
-  return new Program(idl as Idl, PROGRAM_ID, provider);
+  // Ensure the IDL has the correct `address` field expected by Anchor clients
+  const idlWithAddress = { ...(idl as any), address: PROGRAM_ID.toBase58() } as Idl;
+  // Anchor (browser build) constructor: (idl, provider?, coder?)
+  return new Program(idlWithAddress, provider);
 }
 
 export function getVaultPda(creator: PublicKey, seed: BN): [PublicKey, number] {

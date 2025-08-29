@@ -7,10 +7,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-time_locked_wallet = "8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB"
+time_locked_wallet = "4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb"
 
 [programs.devnet]
-time_locked_wallet = "8hhcP8PphoMi1H7ZJq2F7V6z5T8W9mW51ehpahn1buyB"
+time_locked_wallet = "4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb"
 
 [registry]
 url = "https://api.apr.dev"

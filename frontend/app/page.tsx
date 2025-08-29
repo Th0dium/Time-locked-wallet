@@ -1,10 +1,16 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BN } from "@coral-xyz/anchor";
+import dynamic from "next/dynamic";
+import BN from "bn.js";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { getProgram, getVaultPda, randomU64BN, solToLamports, nowUnix } from "../src/utils/anchor";
+
+// Avoid SSR for wallet button to prevent hydration mismatch
+const WalletMultiButton = dynamic(
+  async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
+  { ssr: false }
+);
 
 export default function Home() {
   const wallet = useWallet();
@@ -37,14 +43,20 @@ function btnCls(active: boolean) {
 function CreateVault() {
   const wallet = useWallet();
   const [amountSol, setAmountSol] = useState(0.1);
-  const [unlockISO, setUnlockISO] = useState<string>(() => new Date(Date.now() + 60_000).toISOString().slice(0, 16));
+  const [unlockISO, setUnlockISO] = useState<string>("");
   const [authorityMode, setAuthorityMode] = useState<"none" | "self" | "other">("none");
   const [authorityOther, setAuthorityOther] = useState("");
   const [receiver, setReceiver] = useState("");
   const [rights, setRights] = useState(0);
-  const [seedBN, setSeedBN] = useState<BN>(() => randomU64BN());
+  const [seedBN, setSeedBN] = useState<BN | null>(null);
   const [txSig, setTxSig] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Defer time/random initialization to client mount to avoid SSR mismatches
+  useEffect(() => {
+    setUnlockISO(new Date(Date.now() + 60_000).toISOString().slice(0, 16));
+    setSeedBN(randomU64BN());
+  }, []);
 
   const creatorPk = wallet.publicKey;
   const authorityPk = useMemo(() => {
@@ -55,9 +67,10 @@ function CreateVault() {
     } catch { return null; }
   }, [authorityMode, creatorPk, authorityOther]);
 
-  const seedLe = useMemo(() => Buffer.from(seedBN.toArray("le", 8)), [seedBN]);
+  const seedLe = useMemo(() => (seedBN ? Buffer.from(seedBN.toArray("le", 8)) : Buffer.alloc(8)), [seedBN]);
   const vaultPda = useMemo(() => {
     if (!creatorPk) return null as PublicKey | null;
+    if (!seedBN) return null;
     return getVaultPda(creatorPk, seedBN)[0];
   }, [creatorPk, seedBN]);
 
@@ -71,6 +84,7 @@ function CreateVault() {
 
     setBusy(true);
     try {
+      if (!seedBN) return alert("Seed not ready yet, please try again");
       const program = getProgram(wallet);
       const amount = new BN(solToLamports(amountSol).toString());
       const unlockTs = new BN(Math.floor(new Date(unlockISO).getTime() / 1000));
@@ -80,9 +94,9 @@ function CreateVault() {
       const tx = await program.methods
         .initializeLock(amount, unlockTs, authorityOpt, receiverPk, seedBN, rights)
         .accounts({
-          vault: pda,
-          creator: wallet.publicKey,
-          systemProgram: SystemProgram.programId,
+          vault: pda.toBase58(),
+          creator: wallet.publicKey.toBase58(),
+          systemProgram: SystemProgram.programId.toBase58(),
         })
         .rpc();
       setTxSig(tx);
@@ -145,7 +159,10 @@ function AdminView() {
   const [loading, setLoading] = useState(false);
   const [vaults, setVaults] = useState<any[]>([]);
   const [newReceiver, setNewReceiver] = useState("");
-  const [newUnlockISO, setNewUnlockISO] = useState<string>(() => new Date(Date.now() + 3600_000).toISOString().slice(0,16));
+  const [newUnlockISO, setNewUnlockISO] = useState<string>("");
+  useEffect(() => {
+    setNewUnlockISO(new Date(Date.now() + 3600_000).toISOString().slice(0,16));
+  }, []);
 
   const reload = useCallback(async ()=>{
     if (!wallet.connected) return setVaults([]);
@@ -167,7 +184,10 @@ function AdminView() {
     try { pk = new PublicKey(newReceiver); } catch { return alert("Invalid receiver pubkey"); }
     try {
       const program = getProgram(wallet);
-      await program.methods.setReceiver(pk).accounts({ vault: vault.publicKey, authority: wallet.publicKey }).rpc();
+      await program.methods
+        .setReceiver(pk)
+        .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
+        .rpc();
       await reload();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
@@ -176,7 +196,10 @@ function AdminView() {
     const ts = Math.floor(new Date(newUnlockISO).getTime()/1000);
     try {
       const program = getProgram(wallet);
-      await program.methods.setDuration(new BN(ts)).accounts({ vault: vault.publicKey, authority: wallet.publicKey }).rpc();
+      await program.methods
+        .setDuration(new BN(ts))
+        .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
+        .rpc();
       await reload();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
@@ -233,11 +256,14 @@ function WithdrawView() {
   const doWithdraw = async (vault:any) => {
     try {
       const program = getProgram(wallet);
-      await program.methods.withdraw().accounts({
-        vault: vault.publicKey,
-        receiver: wallet.publicKey,
-        creatorAccount: vault.account.creator,
-      }).rpc();
+      await program.methods
+        .withdraw()
+        .accounts({
+          vault: vault.publicKey.toBase58(),
+          receiver: wallet.publicKey?.toBase58() as string,
+          creatorAccount: vault.account.creator.toBase58(),
+        })
+        .rpc();
       await reload();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
