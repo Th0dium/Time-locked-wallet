@@ -56,7 +56,7 @@ pub struct TimeLock {
   - Create Vault: form for amount, unlock time, receiver, authority (self/other/None), random `u64` seed → derive PDA and call `initialize_lock`.
   - Administrator: list vaults where `account.authority == wallet.publicKey`; actions: `set_receiver`, `set_duration`.
   - Withdraw: list vaults where `account.receiver == wallet.publicKey`; action: `withdraw` (fails on-chain if too early).
-- Listing approach: Prefer `program.account.timeLock.all()` and filter by role (simpler than memcmp offsets because `authority` is an Option).
+- Listing approach (updated to avoid 429): Use memcmp filters to narrow results server-side, cache results on first page load, and refresh only on user action. Avoid repeated `.all()` on tab switches.
 - Seed generation: FE generates a random `u64` for init; later ops don’t need seed since it’s stored on-chain.
 - Update initializer form to include an “authority rights” control:
 None: rights = 0 (and/or force authority = None)
@@ -67,4 +67,7 @@ Both: rights = 3
 - Amount semantics: withdraw uses the stored `amount`. Extra lamports sent later are returned to the creator when the account is closed.
 - Tests: `tests/time-locked-wallet.ts` targets an older API and must be updated to match the current instruction signatures and PDA seeds.
 - The set_duration instruction can be very dangerous, as misuse or griefing scenarios could basically trash the whole vault.
-- Public Devnet limit (249 error): Heavy calls like `getProgramAccounts` which `program.account.timeLock.all()` uses quicly exhausting the short-term budget => blocked for cooldown.  <Pending-fix>
+- RPC rate limits (HTTP 429): Public Devnet/Mainnet endpoints limit request rates. Solutions:
+  - Add refresh cooldown (5 seconds)
+  - Use memcmp filters for `getProgramAccounts` to reduce payload.
+  - Support custom RPC via `NEXT_PUBLIC_RPC_URL` (see frontend/app/providers.tsx) to use a dedicated endpoint with higher quotas.

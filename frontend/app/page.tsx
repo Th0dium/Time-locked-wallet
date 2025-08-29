@@ -60,6 +60,8 @@ export default function Home() {
   const [loadingAdmin, setLoadingAdmin] = useState(false);
   const [loadingWithdraw, setLoadingWithdraw] = useState(false);
   const initialFetchedForWallet = useRef<string | null>(null);
+  const [adminCooldownUntil, setAdminCooldownUntil] = useState<number | null>(null);
+  const [withdrawCooldownUntil, setWithdrawCooldownUntil] = useState<number | null>(null);
 
   const fetchAdmin = useCallback(async () => {
     if (!wallet.connected || !wallet.publicKey) return;
@@ -79,9 +81,19 @@ export default function Home() {
     try {
       const program = getProgram(wallet);
       const pkb58 = wallet.publicKey.toBase58();
-      const q1 = program.account.timeLock.all([{ memcmp: { offset: 8 + 32 + 1, bytes: pkb58 } }]);
-      const q2 = program.account.timeLock.all([{ memcmp: { offset: 8 + 32 + 1 + 32, bytes: pkb58 } }]);
-      const [r1, r2] = await Promise.all([q1, q2]);
+      const tagNone = bs58.encode(Buffer.from([0]));
+      const tagSome = bs58.encode(Buffer.from([1]));
+      // Case authority == None: receiver at offset 8+32+1, and tag 0 at 8+32
+      const qNone = program.account.timeLock.all([
+        { memcmp: { offset: 8 + 32, bytes: tagNone } },
+        { memcmp: { offset: 8 + 32 + 1, bytes: pkb58 } },
+      ]);
+      // Case authority == Some: receiver at offset 8+32+1+32, and tag 1 at 8+32
+      const qSome = program.account.timeLock.all([
+        { memcmp: { offset: 8 + 32, bytes: tagSome } },
+        { memcmp: { offset: 8 + 32 + 1 + 32, bytes: pkb58 } },
+      ]);
+      const [r1, r2] = await Promise.all([qNone, qSome]);
       const map = new Map<string, any>();
       for (const v of [...r1, ...r2]) map.set(v.publicKey.toBase58(), v);
       setWithdrawVaults(Array.from(map.values()));
@@ -99,6 +111,23 @@ export default function Home() {
     fetchWithdraw();
   }, [wallet.connected, wallet.publicKey, fetchAdmin, fetchWithdraw]);
 
+  // Manual refresh with 5s cooldown per tab
+  const handleAdminRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (adminCooldownUntil && now < adminCooldownUntil) return;
+    setAdminCooldownUntil(now + 5000);
+    setTimeout(() => setAdminCooldownUntil(null), 5000);
+    await fetchAdmin();
+  }, [fetchAdmin, adminCooldownUntil]);
+
+  const handleWithdrawRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (withdrawCooldownUntil && now < withdrawCooldownUntil) return;
+    setWithdrawCooldownUntil(now + 5000);
+    setTimeout(() => setWithdrawCooldownUntil(null), 5000);
+    await fetchWithdraw();
+  }, [fetchWithdraw, withdrawCooldownUntil]);
+
   return (
     <div className="min-h-screen p-6 text-sm">
       <header className="flex items-center justify-between mb-6">
@@ -113,8 +142,22 @@ export default function Home() {
       </nav>
 
       {tab === "create" && <CreateVault />}
-      {tab === "admin" && <AdminView vaults={adminVaults} loading={loadingAdmin} onRefresh={fetchAdmin} />}
-      {tab === "withdraw" && <WithdrawView vaults={withdrawVaults} loading={loadingWithdraw} onRefresh={fetchWithdraw} />}
+      {tab === "admin" && (
+        <AdminView
+          vaults={adminVaults}
+          loading={loadingAdmin}
+          onRefresh={handleAdminRefresh}
+          refreshDisabled={!!(adminCooldownUntil && Date.now() < adminCooldownUntil)}
+        />
+      )}
+      {tab === "withdraw" && (
+        <WithdrawView
+          vaults={withdrawVaults}
+          loading={loadingWithdraw}
+          onRefresh={handleWithdrawRefresh}
+          refreshDisabled={!!(withdrawCooldownUntil && Date.now() < withdrawCooldownUntil)}
+        />
+      )}
     </div>
   );
 }
@@ -259,7 +302,7 @@ function CreateVault() {
   );
 }
 
-function AdminView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void }) {
+function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
   const wallet = useWallet();
   const [newReceiver, setNewReceiver] = useState("");
   const [newDate, setNewDate] = useState<string>("");
@@ -309,7 +352,7 @@ function AdminView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boo
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Administrator</h2>
       <div className="flex gap-2 items-center">
-        <button onClick={()=>onRefresh()} className="px-3 py-2 border rounded">Refresh</button>
+        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="px-3 py-2 border rounded disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">
@@ -341,7 +384,7 @@ function AdminView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boo
   );
 }
 
-function WithdrawView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void }) {
+function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
   const wallet = useWallet();
 
   // No auto fetch here; data comes from parent and persists across tabs
@@ -365,7 +408,7 @@ function WithdrawView({ vaults, loading, onRefresh }: { vaults: any[]; loading: 
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Withdraw</h2>
       <div className="flex gap-2 items-center">
-        <button onClick={()=>onRefresh()} className="px-3 py-2 border rounded">Refresh</button>
+        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="px-3 py-2 border rounded disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">
