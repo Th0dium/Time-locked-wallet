@@ -1,7 +1,8 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import BN from "bn.js";
+import bs58 from "bs58";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getProgram, getVaultPda, randomU64BN, solToLamports, nowUnix } from "../src/utils/anchor";
@@ -53,6 +54,51 @@ export default function Home() {
   const wallet = useWallet();
   const [tab, setTab] = useState<"create" | "admin" | "withdraw">("create");
 
+  // Cache data across tabs; fetch once after wallet connects
+  const [adminVaults, setAdminVaults] = useState<any[]>([]);
+  const [withdrawVaults, setWithdrawVaults] = useState<any[]>([]);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
+  const [loadingWithdraw, setLoadingWithdraw] = useState(false);
+  const initialFetchedForWallet = useRef<string | null>(null);
+
+  const fetchAdmin = useCallback(async () => {
+    if (!wallet.connected || !wallet.publicKey) return;
+    setLoadingAdmin(true);
+    try {
+      const program = getProgram(wallet);
+      const mem = bs58.encode(Buffer.concat([Buffer.from([1]), wallet.publicKey.toBuffer()]));
+      const all = await program.account.timeLock.all([{ memcmp: { offset: 8 + 32, bytes: mem } }]);
+      setAdminVaults(all);
+    } catch (e) { console.error(e); }
+    finally { setLoadingAdmin(false); }
+  }, [wallet]);
+
+  const fetchWithdraw = useCallback(async () => {
+    if (!wallet.connected || !wallet.publicKey) return;
+    setLoadingWithdraw(true);
+    try {
+      const program = getProgram(wallet);
+      const pkb58 = wallet.publicKey.toBase58();
+      const q1 = program.account.timeLock.all([{ memcmp: { offset: 8 + 32 + 1, bytes: pkb58 } }]);
+      const q2 = program.account.timeLock.all([{ memcmp: { offset: 8 + 32 + 1 + 32, bytes: pkb58 } }]);
+      const [r1, r2] = await Promise.all([q1, q2]);
+      const map = new Map<string, any>();
+      for (const v of [...r1, ...r2]) map.set(v.publicKey.toBase58(), v);
+      setWithdrawVaults(Array.from(map.values()));
+    } catch (e) { console.error(e); }
+    finally { setLoadingWithdraw(false); }
+  }, [wallet]);
+
+  // Initial fetch after wallet connects (page load / reload)
+  useEffect(() => {
+    const pk = wallet.publicKey?.toBase58();
+    if (!wallet.connected || !pk) return;
+    if (initialFetchedForWallet.current === pk) return;
+    initialFetchedForWallet.current = pk;
+    fetchAdmin();
+    fetchWithdraw();
+  }, [wallet.connected, wallet.publicKey, fetchAdmin, fetchWithdraw]);
+
   return (
     <div className="min-h-screen p-6 text-sm">
       <header className="flex items-center justify-between mb-6">
@@ -67,8 +113,8 @@ export default function Home() {
       </nav>
 
       {tab === "create" && <CreateVault />}
-      {tab === "admin" && <AdminView />}
-      {tab === "withdraw" && <WithdrawView />}
+      {tab === "admin" && <AdminView vaults={adminVaults} loading={loadingAdmin} onRefresh={fetchAdmin} />}
+      {tab === "withdraw" && <WithdrawView vaults={withdrawVaults} loading={loadingWithdraw} onRefresh={fetchWithdraw} />}
     </div>
   );
 }
@@ -213,10 +259,8 @@ function CreateVault() {
   );
 }
 
-function AdminView() {
+function AdminView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void }) {
   const wallet = useWallet();
-  const [loading, setLoading] = useState(false);
-  const [vaults, setVaults] = useState<any[]>([]);
   const [newReceiver, setNewReceiver] = useState("");
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("");
@@ -229,19 +273,7 @@ function AdminView() {
     setNewTzOffset(0);
   }, []);
 
-  const reload = useCallback(async ()=>{
-    if (!wallet.connected) return setVaults([]);
-    setLoading(true);
-    try {
-      const program = getProgram(wallet);
-      const all = await program.account.timeLock.all();
-      const filtered = all.filter((a: any)=> a.account.authority && a.account.authority.toBase58 && a.account.authority.toBase58() === wallet.publicKey?.toBase58());
-      setVaults(filtered);
-    } catch(e){ console.error(e); }
-    setLoading(false);
-  },[wallet]);
-
-  useEffect(()=>{ reload(); },[reload]);
+  // No auto fetch here; data comes from parent and persists across tabs
 
   const doSetReceiver = async (vault: any) => {
     if (!newReceiver) return alert("Enter new receiver pubkey");
@@ -253,7 +285,7 @@ function AdminView() {
         .setReceiver(pk)
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
-      await reload();
+      await onRefresh();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
 
@@ -269,7 +301,7 @@ function AdminView() {
         .setDuration(new BN(ts))
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
-      await reload();
+      await onRefresh();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
 
@@ -277,7 +309,7 @@ function AdminView() {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Administrator</h2>
       <div className="flex gap-2 items-center">
-        <button onClick={reload} className="px-3 py-2 border rounded">Refresh</button>
+        <button onClick={()=>onRefresh()} className="px-3 py-2 border rounded">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">
@@ -309,24 +341,10 @@ function AdminView() {
   );
 }
 
-function WithdrawView() {
+function WithdrawView({ vaults, loading, onRefresh }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void }) {
   const wallet = useWallet();
-  const [loading, setLoading] = useState(false);
-  const [vaults, setVaults] = useState<any[]>([]);
 
-  const reload = useCallback(async ()=>{
-    if (!wallet.connected) return setVaults([]);
-    setLoading(true);
-    try {
-      const program = getProgram(wallet);
-      const all = await program.account.timeLock.all();
-      const filtered = all.filter((a: any)=> a.account.receiver.toBase58() === wallet.publicKey?.toBase58());
-      setVaults(filtered);
-    } catch(e){ console.error(e); }
-    setLoading(false);
-  },[wallet]);
-
-  useEffect(()=>{ reload(); },[reload]);
+  // No auto fetch here; data comes from parent and persists across tabs
 
   const doWithdraw = async (vault:any) => {
     try {
@@ -339,7 +357,7 @@ function WithdrawView() {
           creatorAccount: vault.account.creator.toBase58(),
         })
         .rpc();
-      await reload();
+      await onRefresh();
     } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
   };
 
@@ -347,7 +365,7 @@ function WithdrawView() {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Withdraw</h2>
       <div className="flex gap-2 items-center">
-        <button onClick={reload} className="px-3 py-2 border rounded">Refresh</button>
+        <button onClick={()=>onRefresh()} className="px-3 py-2 border rounded">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">

@@ -67,3 +67,4 @@ Both: rights = 3
 - Amount semantics: withdraw uses the stored `amount`. Extra lamports sent later are returned to the creator when the account is closed.
 - Tests: `tests/time-locked-wallet.ts` targets an older API and must be updated to match the current instruction signatures and PDA seeds.
 - The set_duration instruction can be very dangerous, as misuse or griefing scenarios could basically trash the whole vault.
+- Public Devnet limit (249 error): Heavy calls like `getProgramAccounts` which `program.account.timeLock.all()` uses quicly exhausting the short-term budget => blocked for cooldown.  <Pending-fix>
