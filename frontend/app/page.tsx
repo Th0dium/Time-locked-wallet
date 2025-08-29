@@ -6,6 +6,43 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getProgram, getVaultPda, randomU64BN, solToLamports, nowUnix } from "../src/utils/anchor";
 
+// Time helpers (UTC-first)
+function pad2(n: number) { return String(n).padStart(2, "0"); }
+function formatTzLabel(offsetMin: number) {
+  const sign = offsetMin >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMin);
+  const hh = Math.floor(abs / 60);
+  const mm = abs % 60;
+  return `UTC${sign}${pad2(hh)}${mm ? ":" + pad2(mm) : ""}`;
+}
+const TZ_OFFSETS: number[] = Array.from({ length: ((14 - -12) * 60) / 30 + 1 }, (_, i) => -12 * 60 + i * 30);
+function defaultUnlockMs(offsetMin = 0) {
+  // default now + 2 minutes, represented in given timezone
+  const ms = Date.now() + 120_000;
+  return ms;
+}
+function msToDateTimeFields(msUTC: number, offsetMin: number) {
+  // Convert a UTC ms timestamp into date/time components in the given timezone
+  const msLocal = msUTC + offsetMin * 60_000;
+  const d = new Date(msLocal);
+  const year = d.getUTCFullYear();
+  const month = pad2(d.getUTCMonth() + 1);
+  const day = pad2(d.getUTCDate());
+  const hour = pad2(d.getUTCHours());
+  const minute = pad2(d.getUTCMinutes());
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` };
+}
+function fieldsToEpoch(dateStr: string, timeStr: string, offsetMin: number): number {
+  // Interpret date/time as being in the given timezone, and return epoch seconds (UTC)
+  // Expect dateStr=YYYY-MM-DD, timeStr=HH:MM
+  if (!dateStr || !timeStr) return NaN;
+  const [y, m, d] = dateStr.split("-").map((s) => parseInt(s, 10));
+  const [hh, mm] = timeStr.split(":").map((s) => parseInt(s, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d) || !Number.isFinite(hh) || !Number.isFinite(mm)) return NaN;
+  const msUTC = Date.UTC(y, (m - 1), d, hh, mm) - offsetMin * 60_000;
+  return Math.floor(msUTC / 1000);
+}
+
 // Avoid SSR for wallet button to prevent hydration mismatch
 const WalletMultiButton = dynamic(
   async () => (await import("@solana/wallet-adapter-react-ui")).WalletMultiButton,
@@ -43,7 +80,9 @@ function btnCls(active: boolean) {
 function CreateVault() {
   const wallet = useWallet();
   const [amountSol, setAmountSol] = useState(0.1);
-  const [unlockISO, setUnlockISO] = useState<string>("");
+  const [unlockDate, setUnlockDate] = useState<string>("");
+  const [unlockTime, setUnlockTime] = useState<string>("");
+  const [tzOffset, setTzOffset] = useState<number>(0); // minutes offset from UTC
   const [authorityMode, setAuthorityMode] = useState<"none" | "self" | "other">("none");
   const [authorityOther, setAuthorityOther] = useState("");
   const [receiver, setReceiver] = useState("");
@@ -52,9 +91,13 @@ function CreateVault() {
   const [txSig, setTxSig] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Defer time/random initialization to client mount to avoid SSR mismatches
+  // Initialize default UTC time (now + 2 min) and seed
   useEffect(() => {
-    setUnlockISO(new Date(Date.now() + 60_000).toISOString().slice(0, 16));
+    const ms = defaultUnlockMs(0);
+    const { date, time } = msToDateTimeFields(ms, 0);
+    setUnlockDate(date);
+    setUnlockTime(time);
+    setTzOffset(0);
     setSeedBN(randomU64BN());
   }, []);
 
@@ -87,7 +130,12 @@ function CreateVault() {
       if (!seedBN) return alert("Seed not ready yet, please try again");
       const program = getProgram(wallet);
       const amount = new BN(solToLamports(amountSol).toString());
-      const unlockTs = new BN(Math.floor(new Date(unlockISO).getTime() / 1000));
+      const tsNum = fieldsToEpoch(unlockDate, unlockTime, tzOffset);
+      const nowNum = Math.floor(Date.now() / 1000);
+      if (!Number.isFinite(tsNum) || tsNum <= nowNum) {
+        return alert("Unlock time must be in the future");
+      }
+      const unlockTs = new BN(tsNum);
       const authorityOpt = authorityPk ? authorityPk : null;
       const [pda] = getVaultPda(wallet.publicKey, seedBN);
 
@@ -106,7 +154,7 @@ function CreateVault() {
     } finally {
       setBusy(false);
     }
-  }, [wallet, amountSol, unlockISO, authorityMode, authorityPk, receiver, rights, seedBN]);
+  }, [wallet, amountSol, unlockDate, unlockTime, tzOffset, authorityMode, authorityPk, receiver, rights, seedBN]);
 
   return (
     <div className="max-w-xl space-y-3">
@@ -116,10 +164,21 @@ function CreateVault() {
           <input type="number" step="0.000000001" className="w-full border px-2 py-1"
             value={amountSol} onChange={e=>setAmountSol(parseFloat(e.target.value||"0"))} />
         </label>
-        <label className="col-span-1">Unlock time
-          <input type="datetime-local" className="w-full border px-2 py-1"
-            value={unlockISO} onChange={e=>setUnlockISO(e.target.value)} />
-        </label>
+        <div className="col-span-1 space-y-1">
+          <div className="font-medium">Unlock time (UTC-first)</div>
+          <div className="grid grid-cols-3 gap-2 items-center">
+            <input type="date" className="col-span-2 border px-2 py-1" value={unlockDate} onChange={(e)=>setUnlockDate(e.target.value)} />
+            <input type="time" className="col-span-1 border px-2 py-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs">Timezone</label>
+            <select className="w-full border px-2 py-1" value={tzOffset} onChange={(e)=>setTzOffset(parseInt(e.target.value))}>
+              {TZ_OFFSETS.map((o)=> (
+                <option key={o} value={o}>{formatTzLabel(o)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <label className="col-span-2">Receiver pubkey
           <input className="w-full border px-2 py-1" placeholder="Receiver PublicKey"
             value={receiver} onChange={e=>setReceiver(e.target.value)} />
@@ -159,9 +218,15 @@ function AdminView() {
   const [loading, setLoading] = useState(false);
   const [vaults, setVaults] = useState<any[]>([]);
   const [newReceiver, setNewReceiver] = useState("");
-  const [newUnlockISO, setNewUnlockISO] = useState<string>("");
+  const [newDate, setNewDate] = useState<string>("");
+  const [newTime, setNewTime] = useState<string>("");
+  const [newTzOffset, setNewTzOffset] = useState<number>(0);
   useEffect(() => {
-    setNewUnlockISO(new Date(Date.now() + 3600_000).toISOString().slice(0,16));
+    const ms = Date.now() + 3600_000; // +1h default
+    const { date, time } = msToDateTimeFields(ms, 0);
+    setNewDate(date);
+    setNewTime(time);
+    setNewTzOffset(0);
   }, []);
 
   const reload = useCallback(async ()=>{
@@ -193,7 +258,11 @@ function AdminView() {
   };
 
   const doSetDuration = async (vault: any) => {
-    const ts = Math.floor(new Date(newUnlockISO).getTime()/1000);
+    const ts = fieldsToEpoch(newDate, newTime, newTzOffset);
+    const nowNum = Math.floor(Date.now()/1000);
+    if (!Number.isFinite(ts) || ts <= nowNum) {
+      return alert("New unlock time must be in the future");
+    }
     try {
       const program = getProgram(wallet);
       await program.methods
@@ -223,7 +292,13 @@ function AdminView() {
               <button onClick={()=>doSetReceiver(v)} className="px-3 py-1 border rounded">Set Receiver</button>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
-              <input type="datetime-local" className="border px-2 py-1" value={newUnlockISO} onChange={e=>setNewUnlockISO(e.target.value)} />
+              <input type="date" className="border px-2 py-1" value={newDate} onChange={(e)=>setNewDate(e.target.value)} />
+              <input type="time" className="border px-2 py-1" step={60} value={newTime} onChange={(e)=>setNewTime(e.target.value)} />
+              <select className="border px-2 py-1" value={newTzOffset} onChange={(e)=>setNewTzOffset(parseInt(e.target.value))}>
+                {TZ_OFFSETS.map((o)=> (
+                  <option key={o} value={o}>{formatTzLabel(o)}</option>
+                ))}
+              </select>
               <button onClick={()=>doSetDuration(v)} className="px-3 py-1 border rounded">Set Duration</button>
             </div>
           </div>
