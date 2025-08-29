@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --border: #e5e7eb; /* gray-200 */
+  --muted: #6b7280;  /* gray-500 */
+  --card: #ffffff;
+  --input: #ffffff;
+  --link: #0ea5e9;   /* sky-500 */
 }
 
 @theme inline {
@@ -16,11 +21,38 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --border: #2a2a2a;
+    --muted: #9ca3af;  /* gray-400 */
+    --card: #0f0f0f;
+    --input: #111111;
+    --link: #38bdf8;   /* sky-400 */
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color-scheme: light dark;
 }
+
+/* Ensure form controls and borders inherit correct colors in dark mode */
+input, select, textarea, button {
+  color: var(--foreground);
+  background-color: var(--input);
+  border-color: var(--border);
+}
+
+/* Placeholder visibility in dark mode */
+::placeholder {
+  color: var(--muted);
+  opacity: 1; /* ensure consistent rendering across browsers */
+}
+
+/* Utility: default border color for elements using .border */
+.border { border-color: var(--border); }
+
+a { color: var(--link); }

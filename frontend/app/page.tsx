@@ -171,52 +171,54 @@ function CreateVault() {
   const [amountSol, setAmountSol] = useState(0.1);
   const [unlockDate, setUnlockDate] = useState<string>("");
   const [unlockTime, setUnlockTime] = useState<string>("");
-  const [tzOffset, setTzOffset] = useState<number>(0); // minutes offset from UTC
-  const [authorityMode, setAuthorityMode] = useState<"none" | "self" | "other">("none");
-  const [authorityOther, setAuthorityOther] = useState("");
+  const [tzOffset, setTzOffset] = useState<number>(420); // minutes offset from UTC (default GMT+7)
+  const [authorityInput, setAuthorityInput] = useState("");
   const [receiver, setReceiver] = useState("");
   const [rights, setRights] = useState(0);
-  const [seedBN, setSeedBN] = useState<BN | null>(null);
   const [txSig, setTxSig] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Initialize default UTC time (now + 2 min) and seed
+  // Initialize default UTC time (now + 2 min) with default TZ = GMT+7
   useEffect(() => {
-    const ms = defaultUnlockMs(0);
-    const { date, time } = msToDateTimeFields(ms, 0);
+    const defaultOffset = 7 * 60;
+    const ms = defaultUnlockMs(defaultOffset);
+    const { date, time } = msToDateTimeFields(ms, defaultOffset);
     setUnlockDate(date);
     setUnlockTime(time);
-    setTzOffset(0);
-    setSeedBN(randomU64BN());
+    setTzOffset(defaultOffset);
   }, []);
 
-  const creatorPk = wallet.publicKey;
   const authorityPk = useMemo(() => {
-    if (authorityMode === "none") return null;
-    if (authorityMode === "self") return creatorPk ?? null;
-    try {
-      return authorityOther ? new PublicKey(authorityOther) : null;
-    } catch { return null; }
-  }, [authorityMode, creatorPk, authorityOther]);
+    if (!authorityInput) return null;
+    try { return new PublicKey(authorityInput); } catch { return null; }
+  }, [authorityInput]);
+  const hasAuthority = authorityInput.trim().length > 0;
+  const authorityInvalid = hasAuthority && authorityPk === null;
 
-  const seedLe = useMemo(() => (seedBN ? Buffer.from(seedBN.toArray("le", 8)) : Buffer.alloc(8)), [seedBN]);
-  const vaultPda = useMemo(() => {
-    if (!creatorPk) return null as PublicKey | null;
-    if (!seedBN) return null;
-    return getVaultPda(creatorPk, seedBN)[0];
-  }, [creatorPk, seedBN]);
+  const receiverPkObj = useMemo(() => {
+    if (!receiver) return null;
+    try { return new PublicKey(receiver); } catch { return null; }
+  }, [receiver]);
+  const receiverInvalid = receiver.trim().length > 0 && receiverPkObj === null;
+
+  // If authority cleared, ensure rights reset to 0 so validation passes
+  useEffect(() => {
+    if (!hasAuthority && rights !== 0) setRights(0);
+  }, [hasAuthority, rights]);
+  // If authority is entered for the first time, default rights to BOTH (3)
+  useEffect(() => {
+    if (hasAuthority && rights === 0) setRights(3);
+  }, [hasAuthority, rights]);
+
+  // PDA preview is omitted; seed is generated on submit
 
   const onSubmit = useCallback(async () => {
     if (!wallet.connected || !wallet.publicKey) return alert("Connect wallet first");
-    if (!receiver) return alert("Receiver pubkey required");
-    let receiverPk: PublicKey;
-    try { receiverPk = new PublicKey(receiver); } catch { return alert("Invalid receiver pubkey"); }
-    if (authorityMode === "other" && !authorityPk) return alert("Invalid authority pubkey");
-    if (authorityMode === "none" && rights !== 0) return alert("Rights must be 0 when authority is None");
+    if (!receiverPkObj) return alert("Receiver pubkey required or invalid format");
+    // Do not block on invalid authority: treat as None and force rights=0 at submit
 
     setBusy(true);
     try {
-      if (!seedBN) return alert("Seed not ready yet, please try again");
       const program = getProgram(wallet);
       const amount = new BN(solToLamports(amountSol).toString());
       const tsNum = fieldsToEpoch(unlockDate, unlockTime, tzOffset);
@@ -225,11 +227,14 @@ function CreateVault() {
         return alert("Unlock time must be in the future");
       }
       const unlockTs = new BN(tsNum);
-      const authorityOpt = authorityPk ? authorityPk : null;
+      const useAuthority = authorityPk ? authorityPk : null;
+      const useRights = authorityPk ? rights : 0;
+      // Generate a fresh random seed for this vault
+      const seedBN = randomU64BN();
       const [pda] = getVaultPda(wallet.publicKey, seedBN);
 
       const tx = await program.methods
-        .initializeLock(amount, unlockTs, authorityOpt, receiverPk, seedBN, rights)
+        .initializeLock(amount, unlockTs, useAuthority, receiverPkObj, seedBN, useRights)
         .accounts({
           vault: pda.toBase58(),
           creator: wallet.publicKey.toBase58(),
@@ -243,7 +248,7 @@ function CreateVault() {
     } finally {
       setBusy(false);
     }
-  }, [wallet, amountSol, unlockDate, unlockTime, tzOffset, authorityMode, authorityPk, receiver, rights, seedBN]);
+  }, [wallet, amountSol, unlockDate, unlockTime, tzOffset, authorityInput, authorityPk, receiverPkObj, rights]);
 
   return (
     <div className="max-w-xl space-y-3">
@@ -268,33 +273,64 @@ function CreateVault() {
             </select>
           </div>
         </div>
-        <label className="col-span-2">Receiver pubkey
-          <input className="w-full border px-2 py-1" placeholder="Receiver PublicKey"
-            value={receiver} onChange={e=>setReceiver(e.target.value)} />
-        </label>
-        <fieldset className="col-span-2">
-          <legend className="font-medium mb-1">Authority</legend>
-          <div className="flex gap-4">
-            <label><input type="radio" name="auth" checked={authorityMode==="none"} onChange={()=>setAuthorityMode("none")} /> None</label>
-            <label><input type="radio" name="auth" checked={authorityMode==="self"} onChange={()=>setAuthorityMode("self")} /> Self (creator)</label>
-            <label className="flex items-center gap-2">
-              <input type="radio" name="auth" checked={authorityMode==="other"} onChange={()=>setAuthorityMode("other")} /> Other
-              <input className="border px-2 py-1" placeholder="Authority PublicKey" value={authorityOther} onChange={e=>setAuthorityOther(e.target.value)} />
-            </label>
+        <div className="col-span-2">
+          <label className="block">Receiver pubkey</label>
+          <div className="flex gap-2">
+            <input
+              className={`flex-1 border px-2 py-1 ${receiverInvalid ? 'border-red-500' : ''}`}
+              placeholder="Receiver PublicKey"
+              value={receiver}
+              onChange={e=>setReceiver(e.target.value)}
+              aria-invalid={receiverInvalid}
+            />
+            <button
+              type="button"
+              className="px-3 py-1 border rounded"
+              onClick={()=> setReceiver(wallet.publicKey?.toBase58() || "")}
+            >Self</button>
           </div>
-        </fieldset>
-        <label className="col-span-2">Authority rights
-          <select className="w-full border px-2 py-1" value={rights} onChange={e=>setRights(parseInt(e.target.value))}>
-            <option value={0}>None</option>
-            <option value={1}>Change receiver</option>
-            <option value={2}>Change duration</option>
-            <option value={3}>Both</option>
-          </select>
-        </label>
+          {receiverInvalid && (
+            <p className="text-xs text-red-600 mt-1">Invalid public key format</p>
+          )}
+        </div>
+        <div className="col-span-2">
+          <label className="block font-medium mb-1" title="Leave empty for none">Authority pubkey</label>
+          <div className="flex gap-2">
+            <input
+              className={`flex-1 border px-2 py-1 ${authorityInvalid ? 'border-red-500' : ''}`}
+              placeholder="Leave empty for none"
+              title="Leave empty for none"
+              value={authorityInput}
+              onChange={(e)=>setAuthorityInput(e.target.value)}
+              aria-invalid={authorityInvalid}
+            />
+            <button
+              type="button"
+              className="px-3 py-1 border rounded"
+              onClick={()=> setAuthorityInput("")}
+            >Clear</button>
+            <button
+              type="button"
+              className="px-3 py-1 border rounded"
+              onClick={()=> setAuthorityInput(wallet.publicKey?.toBase58() || "")}
+            >Self</button>
+          </div>
+          {authorityInvalid && (
+            <p className="text-xs text-red-600 mt-1">Invalid public key format</p>
+          )}
+        </div>
+        {hasAuthority && (
+          <label className="col-span-2">Authority rights
+            <select className="w-full border px-2 py-1" value={rights} onChange={e=>setRights(parseInt(e.target.value))}>
+              <option value={1}>Change receiver</option>
+              <option value={2}>Change duration</option>
+              <option value={3}>Both</option>
+            </select>
+          </label>
+        )}
         <div className="col-span-2 flex items-center gap-2">
           <button disabled={busy || !wallet.connected} onClick={onSubmit} className="px-3 py-2 border rounded disabled:opacity-50">Create</button>
-          <button className="px-3 py-2 border rounded" onClick={()=>setSeedBN(randomU64BN())}>New Seed</button>
-          {vaultPda && <span className="text-xs break-all">PDA: {vaultPda.toBase58()}</span>}
+          {/* Seed is generated automatically on submit */}
         </div>
         {txSig && <div className="col-span-2 text-xs break-all">Tx: {txSig}</div>}
       </div>
@@ -316,7 +352,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
     setNewTzOffset(0);
   }, []);
 
-  // No auto fetch here; data comes from parent and persists across tabs
+  // Data comes from parent and persists across tabs
 
   const doSetReceiver = async (vault: any) => {
     if (!newReceiver) return alert("Enter new receiver pubkey");
@@ -387,10 +423,15 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
 function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
   const wallet = useWallet();
 
-  // No auto fetch here; data comes from parent and persists across tabs
+  // Data comes from parent and persists across tabs
 
   const doWithdraw = async (vault:any) => {
     try {
+      // Pre-check: if still locked, warn and skip tx
+      const now = Math.floor(Date.now()/1000);
+      if (now < Number(vault.account.unlockTimestamp)) {
+        return alert("Still locked. Please wait until unlock time.");
+      }
       const program = getProgram(wallet);
       await program.methods
         .withdraw()
