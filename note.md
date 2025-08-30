@@ -17,21 +17,24 @@
 2) withdraw()
    - Only `receiver` (signer; must equal `vault.receiver`).
    - Requires `now >= vault.unlock_timestamp`.
-   - Transfers `vault.amount` to receiver, sets `amount = 0`, then closes the vault to the creator (rent refund).
+   - Transfers `vault.amount` to receiver and sets `amount = 0`.
+   - Does NOT auto-close the vault account (manual close flow is deferred).
 
 3) set_receiver(new_receiver: Pubkey)
    - Only authority (signer) and only when `vault.authority == Some(authority_pubkey)`.
    - Requires right bit 0 (`authority_rights & 1 != 0`).
+   - Disallowed when `vault.amount == 0` (AlreadyWithdrawn).
    - Updates `vault.receiver`.
 
 4) set_duration(new_unlock_timestamp: i64)
    - Only authority (signer) and only when `vault.authority == Some(authority_pubkey)`.
    - Requires right bit 1 (`authority_rights & 2 != 0`).
+   - Disallowed when `vault.amount == 0` (AlreadyWithdrawn).
    - Updates `vault.unlock_timestamp` (currently unconstrained; can increase/decrease).
 
 ### Accounts
 - InitializeLock: `{ vault (init; PDA by ["vault", creator, seed]), creator (Signer, payer), system_program }`
-- Withdraw: `{ vault (PDA by ["vault", vault.creator, vault.seed]; close = creator_account), receiver (Signer == vault.receiver), creator_account (SystemAccount == vault.creator) }`
+- Withdraw: `{ vault (PDA by ["vault", vault.creator, vault.seed]), receiver (Signer == vault.receiver), creator_account (SystemAccount == vault.creator) }`
 - SetReceiver: `{ vault (PDA by ["vault", vault.creator, vault.seed]), authority (Signer) }`
 - SetDuration: `{ vault (PDA by ["vault", vault.creator, vault.seed]), authority (Signer) }`
 
@@ -65,6 +68,13 @@ Change duration only: rights = 2
 Both: rights = 3
 ## Decisions / Notes
 - Amount semantics: withdraw uses the stored `amount`. Extra lamports sent later are returned to the creator when the account is closed.
+- After withdrawal (`amount == 0`):
+  - Authority cannot modify vault (set_receiver, set_duration will fail with `AlreadyWithdrawn`).
+  - Withdraw tab shows status "Withdrawn" and disables the Withdraw button.
+  - Vault account is kept (no auto-close) until a manual close flow is added.
+- Frontend UX:
+  - Creator tab shows a "Your Vaults" list with Refresh and memcmp-based fetch by creator.
+  - Withdraw tab shows real-time unlock countdown; status updates after unlock.
 - Tests: `tests/time-locked-wallet.ts` targets an older API and must be updated to match the current instruction signatures and PDA seeds.
 - The set_duration instruction can be very dangerous, as misuse or griefing scenarios could basically trash the whole vault.
 - RPC rate limits (HTTP 429): Public Devnet/Mainnet endpoints limit request rates. Solutions:

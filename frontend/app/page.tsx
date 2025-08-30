@@ -418,7 +418,9 @@ function CreateVault({
               <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
               <div>Authority: {fmtAuthority(v.account.authority)}</div>
               <div>Receiver: {v.account.receiver.toBase58()}</div>
-              <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
+            <div>
+              Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+            </div>
               <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
             </div>
           ))}
@@ -491,7 +493,9 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
             <div>Authority: {fmtAuthority(v.account.authority)}</div>
             <div>Receiver: {v.account.receiver.toBase58()}</div>
-            <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
+            <div>
+              Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+            </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
             <div className="flex flex-wrap gap-2 items-center">
               <input className="border px-2 py-1 rounded-md" placeholder="New Receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
@@ -557,17 +561,27 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
         {vaults.map((v:any)=> (
           <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
-            <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
+              <div>
+                Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+              </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
             <div>
               {(() => {
                 const rem = Number(v.account.unlockTimestamp) - nowSec;
-                return rem > 0
-                  ? <>Unlocks in: {formatCountdown(rem)}</>
+                if (rem > 0) return <>Unlocks in: {formatCountdown(rem)}</>;
+                // Already unlocked
+                return Number(v.account.amount) === 0
+                  ? <>There is nothing to withdraw</>
                   : <>Ready to withdraw</>;
               })()}
             </div>
-            <button onClick={()=>doWithdraw(v)} className="btn btn--solid">Withdraw</button>
+            <button
+              onClick={()=>doWithdraw(v)}
+              className="btn btn--solid"
+              disabled={Number(v.account.amount) === 0}
+            >
+              Withdraw
+            </button>
           </div>
         ))}
         {vaults.length === 0 && <div>No vaults found for your address.</div>}

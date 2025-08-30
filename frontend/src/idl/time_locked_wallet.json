@@ -305,6 +305,11 @@
       "code": 6008,
       "name": "AuthorityRightsWithoutAuthority",
       "msg": "authority_rights must be 0 when authority is None"
+    },
+    {
+      "code": 6009,
+      "name": "AlreadyWithdrawn",
+      "msg": "Vault has already been withdrawn; modifications are disabled"
     }
   ],
   "types": [

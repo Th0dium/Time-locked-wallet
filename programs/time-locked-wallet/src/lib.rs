@@ -104,6 +104,9 @@ pub mod time_locked_wallet {
             TimeLockError::AuthorityMissingRight
         );
 
+        // Disallow edits after funds have been withdrawn
+        require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
+
         vault.receiver = new_receiver;
         msg!(
             "Receiver updated by authority {} to {}",
@@ -131,6 +134,9 @@ pub mod time_locked_wallet {
             (vault.authority_rights & 0b0000_0010) != 0,
             TimeLockError::AuthorityMissingRight
         );
+
+        // Disallow edits after funds have been withdrawn
+        require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
 
         vault.unlock_timestamp = new_unlock_timestamp;
         msg!(
@@ -175,7 +181,6 @@ pub struct Withdraw<'info> {
             &vault.seed.to_le_bytes(),
         ],
         bump = vault.bump,
-        close = creator_account
     )]
     pub vault: Account<'info, TimeLock>,
 
@@ -267,4 +272,6 @@ pub enum TimeLockError {
     NothingToWithdraw,
     #[msg("authority_rights must be 0 when authority is None")]
     AuthorityRightsWithoutAuthority,
+    #[msg("Vault has already been withdrawn; modifications are disabled")]
+    AlreadyWithdrawn,
 }
