@@ -1,0 +1,21 @@
+{
+  "name": "time-locked-wallet-tests",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test": "ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.spec.ts\""
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0",
+    "chai": "^4.4.1"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.1"
+  }
+}

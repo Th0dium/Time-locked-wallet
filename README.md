@@ -47,6 +47,7 @@ Bonus‑ready extensions are outlined below (USDC/SPL support, countdown).
   - Create Vault tab: enter amount (SOL), unlock time (UTC‑first controls), receiver pubkey, and optional authority/rights
   - Admin tab: list vaults for which your wallet is authority; update receiver or unlock time (if rights allow)
   - Withdraw tab: list vaults where you are receiver; withdraw after unlock
+  - After withdrawal, the creator can delete the vault (close_vault) to reclaim rent from the "Vaults Created" list
 
 ---
 
@@ -82,11 +83,13 @@ Bonus‑ready extensions are outlined below (USDC/SPL support, countdown).
     - Validations: `amount > 0`, `unlock_timestamp > now`; if `authority` is None then `authority_rights` must be 0
   - withdraw()
     - Only the `receiver` (signer) can withdraw and only after `now >= unlock_timestamp`
-    - Transfers `amount` to `receiver`, sets `amount = 0`, then closes the vault returning rent to `creator`
+    - Transfers `amount` to `receiver` and sets `amount = 0`. To reclaim rent and delete the account, call `close_vault()` (not automatic).
   - set_receiver(new_receiver: Pubkey)
     - Only `authority` with right bit `1` (if authority is Some)
   - set_duration(new_unlock_timestamp: i64)
     - Only `authority` with right bit `2` (if authority is Some)
+  - close_vault()
+    - Only the `creator` can close the vault account, and only when `amount == 0`. This returns the remaining rent lamports to the creator.
 
 ---
 
@@ -174,7 +177,7 @@ Time-locked-wallet/
 │  │  ├─ page.tsx                   # UI (Create/Admin/Withdraw)
 │  │  └─ providers.tsx              # Wallet + connection provider
 │  └─ src/utils/anchor.ts           # Anchor client + PROGRAM_ID
-├─ tests/                           # Example tests (need update to new API)
+├─ tests/                           # Example tests (time_locked_wallet.spec.ts is up-to-date; legacy file kept for reference)
 └─ README.md                        # This file
 ```
 
@@ -205,4 +208,3 @@ Time-locked-wallet/
 ## Notes
 
 This is an educational sample. It is not audited. Use at your own risk.
-
