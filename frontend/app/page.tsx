@@ -244,6 +244,7 @@ function CreateVault({
   const [rights, setRights] = useState(0);
   const [txSig, setTxSig] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deletingPk, setDeletingPk] = useState<string | null>(null);
 
   // Initialize default UTC time (now + 2 min) with default TZ = GMT+7
   useEffect(() => {
@@ -422,6 +423,29 @@ function CreateVault({
               Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
               <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+              <div>
+                <button
+                  className="btn"
+                  disabled={Number(v.account.amount) !== 0 || deletingPk === v.publicKey.toBase58()}
+                  onClick={async ()=>{
+                    if (!wallet.connected || !wallet.publicKey) return alert('Connect wallet first');
+                    try {
+                      setDeletingPk(v.publicKey.toBase58());
+                      const program = getProgram(wallet);
+                      await program.methods
+                        .closeVault()
+                        .accounts({ vault: v.publicKey.toBase58(), creator: wallet.publicKey.toBase58() })
+                        .rpc();
+                      await onRefreshCreator();
+                    } catch (e:any) {
+                      console.error(e);
+                      alert(e?.error?.errorMessage || e.message || 'Delete failed');
+                    } finally {
+                      setDeletingPk(null);
+                    }
+                  }}
+                >{deletingPk === v.publicKey.toBase58() ? 'Deleting…' : 'Delete Vault'}</button>
+              </div>
             </div>
           ))}
           {creatorVaults.length === 0 && (

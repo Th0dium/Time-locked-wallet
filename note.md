@@ -18,7 +18,6 @@
    - Only `receiver` (signer; must equal `vault.receiver`).
    - Requires `now >= vault.unlock_timestamp`.
    - Transfers `vault.amount` to receiver and sets `amount = 0`.
-   - Does NOT auto-close the vault account (manual close flow is deferred).
 
 3) set_receiver(new_receiver: Pubkey)
    - Only authority (signer) and only when `vault.authority == Some(authority_pubkey)`.
@@ -32,11 +31,17 @@
    - Disallowed when `vault.amount == 0` (AlreadyWithdrawn).
    - Updates `vault.unlock_timestamp` (currently unconstrained; can increase/decrease).
 
+5) close_vault()
+   - Only `creator` (signer; must equal `vault.creator`).
+   - Requires `vault.amount == 0` (all funds withdrawn).
+   - Closes the vault PDA and refunds remaining lamports (rent) to the creator.
+
 ### Accounts
 - InitializeLock: `{ vault (init; PDA by ["vault", creator, seed]), creator (Signer, payer), system_program }`
 - Withdraw: `{ vault (PDA by ["vault", vault.creator, vault.seed]), receiver (Signer == vault.receiver), creator_account (SystemAccount == vault.creator) }`
 - SetReceiver: `{ vault (PDA by ["vault", vault.creator, vault.seed]), authority (Signer) }`
 - SetDuration: `{ vault (PDA by ["vault", vault.creator, vault.seed]), authority (Signer) }`
+- CloseVault: `{ vault (PDA by ["vault", vault.creator, vault.seed]; close = creator), creator (Signer == vault.creator) }`
 
 ### State
 ```rust
@@ -71,7 +76,7 @@ Both: rights = 3
 - After withdrawal (`amount == 0`):
   - Authority cannot modify vault (set_receiver, set_duration will fail with `AlreadyWithdrawn`).
   - Withdraw tab shows status "Withdrawn" and disables the Withdraw button.
-  - Vault account is kept (no auto-close) until a manual close flow is added.
+  - Creator can delete (close) the vault from the "Vaults Created" list once `amount == 0`.
 - Frontend UX:
   - Creator tab shows a "Your Vaults" list with Refresh and memcmp-based fetch by creator.
   - Withdraw tab shows real-time unlock countdown; status updates after unlock.

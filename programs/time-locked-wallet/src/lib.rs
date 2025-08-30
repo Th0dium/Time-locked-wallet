@@ -146,6 +146,17 @@ pub mod time_locked_wallet {
         );
         Ok(())
     }
+
+    // Creator-only: manually close the vault account (after amount == 0)
+    pub fn close_vault(ctx: Context<CloseVault>) -> Result<()> {
+        let vault = &ctx.accounts.vault;
+        // Only creator can close
+        require!(ctx.accounts.creator.key() == vault.creator, TimeLockError::OnlyCreator);
+        // Must be fully withdrawn first
+        require!(vault.amount == 0, TimeLockError::NonZeroBalance);
+        // Account will be closed by the `close = creator` constraint
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -228,6 +239,24 @@ pub struct SetDuration<'info> {
     // Must match vault.authority (checked in handler)
     pub authority: Signer<'info>,
 }
+
+#[derive(Accounts)]
+pub struct CloseVault<'info> {
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            vault.creator.as_ref(),
+            &vault.seed.to_le_bytes(),
+        ],
+        bump = vault.bump,
+        close = creator
+    )]
+    pub vault: Account<'info, TimeLock>,
+
+    #[account(mut, address = vault.creator)]
+    pub creator: Signer<'info>,
+}
 #[account]
 pub struct TimeLock {
     pub creator: Pubkey,      //Who created and funded
@@ -274,4 +303,8 @@ pub enum TimeLockError {
     AuthorityRightsWithoutAuthority,
     #[msg("Vault has already been withdrawn; modifications are disabled")]
     AlreadyWithdrawn,
+    #[msg("Only the creator can perform this action")]
+    OnlyCreator,
+    #[msg("Cannot close vault with non-zero recorded amount")]
+    NonZeroBalance,
 }

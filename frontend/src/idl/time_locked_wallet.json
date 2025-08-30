@@ -8,6 +8,55 @@
   },
   "instructions": [
     {
+      "name": "close_vault",
+      "discriminator": [
+        141,
+        103,
+        17,
+        126,
+        72,
+        75,
+        29,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.creator",
+                "account": "TimeLock"
+              },
+              {
+                "kind": "account",
+                "path": "vault.seed",
+                "account": "TimeLock"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize_lock",
       "discriminator": [
         182,
@@ -310,6 +359,16 @@
       "code": 6009,
       "name": "AlreadyWithdrawn",
       "msg": "Vault has already been withdrawn; modifications are disabled"
+    },
+    {
+      "code": 6010,
+      "name": "OnlyCreator",
+      "msg": "Only the creator can perform this action"
+    },
+    {
+      "code": 6011,
+      "name": "NonZeroBalance",
+      "msg": "Cannot close vault with non-zero recorded amount"
     }
   ],
   "types": [
