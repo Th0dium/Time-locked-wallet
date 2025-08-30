@@ -129,13 +129,13 @@ export default function Home() {
   }, [fetchWithdraw, withdrawCooldownUntil]);
 
   return (
-    <div className="min-h-screen p-6 text-sm">
-      <header className="flex items-center justify-between mb-6">
+    <div className="min-h-screen p-6 text-sm flex flex-col items-center">
+      <header className="w-full max-w-4xl flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold">Time-Locked Wallet (Devnet)</h1>
         <WalletMultiButton />
       </header>
 
-      <nav className="flex gap-2 mb-4">
+      <nav className="w-full max-w-4xl flex gap-2 mb-4 justify-center">
         <button className={btnCls(tab === "create")} onClick={() => setTab("create")}>Create Vault</button>
         <button className={btnCls(tab === "admin")} onClick={() => setTab("admin")}>Administrator</button>
         <button className={btnCls(tab === "withdraw")} onClick={() => setTab("withdraw")}>Withdraw</button>
@@ -163,7 +163,7 @@ export default function Home() {
 }
 
 function btnCls(active: boolean) {
-  return `px-3 py-2 rounded border ${active ? "bg-black text-white" : "bg-transparent"}`;
+  return `btn ${active ? 'btn--solid' : ''}`;
 }
 
 function CreateVault() {
@@ -251,7 +251,7 @@ function CreateVault() {
   }, [wallet, amountSol, unlockDate, unlockTime, tzOffset, authorityInput, authorityPk, receiverPkObj, rights]);
 
   return (
-    <div className="max-w-xl space-y-3">
+    <div className="w-full max-w-xl space-y-3">
       <h2 className="text-lg font-semibold">Create Vault</h2>
       <div className="grid grid-cols-2 gap-3">
         <label className="col-span-1">Amount (SOL)
@@ -285,7 +285,7 @@ function CreateVault() {
             />
             <button
               type="button"
-              className="px-3 py-1 border rounded"
+              className="btn"
               onClick={()=> setReceiver(wallet.publicKey?.toBase58() || "")}
             >Self</button>
           </div>
@@ -306,12 +306,12 @@ function CreateVault() {
             />
             <button
               type="button"
-              className="px-3 py-1 border rounded"
+              className="btn"
               onClick={()=> setAuthorityInput("")}
             >Clear</button>
             <button
               type="button"
-              className="px-3 py-1 border rounded"
+              className="btn"
               onClick={()=> setAuthorityInput(wallet.publicKey?.toBase58() || "")}
             >Self</button>
           </div>
@@ -329,7 +329,7 @@ function CreateVault() {
           </label>
         )}
         <div className="col-span-2 flex items-center gap-2">
-          <button disabled={busy || !wallet.connected} onClick={onSubmit} className="px-3 py-2 border rounded disabled:opacity-50">Create</button>
+          <button disabled={busy || !wallet.connected} onClick={onSubmit} className="btn btn--solid disabled:opacity-50">Create</button>
           {/* Seed is generated automatically on submit */}
         </div>
         {txSig && <div className="col-span-2 text-xs break-all">Tx: {txSig}</div>}
@@ -387,34 +387,34 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Administrator</h2>
-      <div className="flex gap-2 items-center">
-        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="px-3 py-2 border rounded disabled:opacity-50">Refresh</button>
+      <div className="flex gap-2 items-center justify-center">
+        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="btn disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="border rounded p-3 space-y-2">
+          <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
             <div>Receiver: {v.account.receiver.toBase58()}</div>
             <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
             <div className="flex flex-wrap gap-2 items-center">
-              <input className="border px-2 py-1" placeholder="New receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
-              <button onClick={()=>doSetReceiver(v)} className="px-3 py-1 border rounded">Set Receiver</button>
+              <input className="border px-2 py-1 rounded-md" placeholder="New receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
+              <button onClick={()=>doSetReceiver(v)} className="btn">Set Receiver</button>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
-              <input type="date" className="border px-2 py-1" value={newDate} onChange={(e)=>setNewDate(e.target.value)} />
-              <input type="time" className="border px-2 py-1" step={60} value={newTime} onChange={(e)=>setNewTime(e.target.value)} />
-              <select className="border px-2 py-1" value={newTzOffset} onChange={(e)=>setNewTzOffset(parseInt(e.target.value))}>
+              <input type="date" className="border px-2 py-1 rounded-md" value={newDate} onChange={(e)=>setNewDate(e.target.value)} />
+              <input type="time" className="border px-2 py-1 rounded-md" step={60} value={newTime} onChange={(e)=>setNewTime(e.target.value)} />
+              <select className="border px-2 py-1 rounded-md" value={newTzOffset} onChange={(e)=>setNewTzOffset(parseInt(e.target.value))}>
                 {TZ_OFFSETS.map((o)=> (
                   <option key={o} value={o}>{formatTzLabel(o)}</option>
                 ))}
               </select>
-              <button onClick={()=>doSetDuration(v)} className="px-3 py-1 border rounded">Set Duration</button>
+              <button onClick={()=>doSetDuration(v)} className="btn">Set Duration</button>
             </div>
           </div>
         ))}
-        {vaults.length === 0 && <div>No vaults found for your authority.</div>}
+        {vaults.length === 0 && <div>No vaults found for your address.</div>}
       </div>
     </div>
   );
@@ -448,20 +448,20 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">Withdraw</h2>
-      <div className="flex gap-2 items-center">
-        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="px-3 py-2 border rounded disabled:opacity-50">Refresh</button>
+      <div className="flex gap-2 items-center justify-center">
+        <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="btn disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="border rounded p-3 space-y-2">
+          <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
             <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
-            <button onClick={()=>doWithdraw(v)} className="px-3 py-2 border rounded">Withdraw</button>
+            <button onClick={()=>doWithdraw(v)} className="btn btn--solid">Withdraw</button>
           </div>
         ))}
-        {vaults.length === 0 && <div>No vaults found for your receiver.</div>}
+        {vaults.length === 0 && <div>No vaults found for your address.</div>}
       </div>
     </div>
   );
