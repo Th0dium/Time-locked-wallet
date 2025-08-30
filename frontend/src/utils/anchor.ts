@@ -2,14 +2,14 @@
 
 import { AnchorProvider, Idl, Program } from "@coral-xyz/anchor";
 import BN from "bn.js";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import idl from "../idl/time_locked_wallet.json";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 
 // Single source of truth for program ID to avoid IDL/address mismatches
 export const PROGRAM_ID = new PublicKey("4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb");
 
-export const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
+export const DEVNET_ENDPOINT = process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com";
 export const SKIP_PREFLIGHT = (process.env.NEXT_PUBLIC_SKIP_PREFLIGHT || "0") === "1";
 
 export function getConnection(): Connection {
@@ -53,9 +53,6 @@ export function lamportsToSol(lamports: bigint | number): number {
   return v / 1_000_000_000;
 }
 
-export function nowUnix(): number {
-  return Math.floor(Date.now() / 1000);
-}
 
 export function randomU64BN(): BN {
   const a = new Uint32Array(2);

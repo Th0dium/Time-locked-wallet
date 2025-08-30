@@ -5,7 +5,7 @@ import BN from "bn.js";
 import bs58 from "bs58";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { getProgram, getVaultPda, randomU64BN, solToLamports, nowUnix } from "../src/utils/anchor";
+import { getProgram, getVaultPda, randomU64BN, solToLamports } from "../src/utils/anchor";
 
 // Time helpers (UTC-first)
 function pad2(n: number) { return String(n).padStart(2, "0"); }
@@ -339,7 +339,7 @@ function CreateVault({
           <div className="font-medium">Unlock time</div>
           <div className="grid grid-cols-3 gap-2 items-center">
             <input type="date" className="col-span-2 border px-2 py-1" value={unlockDate} onChange={(e)=>setUnlockDate(e.target.value)} />
-            <input type="time" className="col-span-1 border px-2 py-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
+            <input lang="en-US" type="time" className="col-span-1 border px-2 py-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
           </div>
           <div>
             <label className="text-xs">Timezone</label>
@@ -457,7 +457,7 @@ function CreateVault({
             </div>
           ))}
           {creatorVaults.length === 0 && (
-            <div className="text-sm text-gray-500">No vaults created by this wallet yet.</div>
+            <div className="text-sm text-gray-500">No vaults found for your address.</div>
           )}
         </div>
       </div>
@@ -541,7 +541,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
             </div>
             <div className="flex flex-wrap gap-2 items-center">
               <input type="date" className="border px-2 py-1 rounded-md" value={newDate} onChange={(e)=>setNewDate(e.target.value)} />
-              <input type="time" className="border px-2 py-1 rounded-md" step={60} value={newTime} onChange={(e)=>setNewTime(e.target.value)} />
+              <input lang="en-US" type="time" className="border px-2 py-1 rounded-md" step={60} value={newTime} onChange={(e)=>setNewTime(e.target.value)} />
               <select className="border px-2 py-1 rounded-md" value={newTzOffset} onChange={(e)=>setNewTzOffset(parseInt(e.target.value))}>
                 {TZ_OFFSETS.map((o)=> (
                   <option key={o} value={o}>{formatTzLabel(o)}</option>
@@ -551,7 +551,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
             </div>
           </div>
         ))}
-        {vaults.length === 0 && <div>No vaults found for your address.</div>}
+        {vaults.length === 0 && <div className="text-sm text-gray-500">No vaults found for your address.</div>}
       </div>
     </div>
   );
@@ -625,7 +625,7 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
             </button>
           </div>
         ))}
-        {vaults.length === 0 && <div>No vaults found for your address.</div>}
+        {vaults.length === 0 && <div  className="text-sm text-gray-500">No vaults found for your address.</div>}
       </div>
     </div>
   );

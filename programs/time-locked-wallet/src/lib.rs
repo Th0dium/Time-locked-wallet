@@ -11,8 +11,8 @@ pub mod time_locked_wallet {
         ctx: Context<InitializeLock>,
         amount: u64,
         unlock_timestamp: i64,
-        authority: Option<Pubkey>,  
-        receiver: Pubkey,  
+        authority: Option<Pubkey>,   
+        receiver: Pubkey,           // Recipient
         seed: u64,
         authority_rights: u8,
     ) -> Result<()> {
@@ -27,11 +27,11 @@ pub mod time_locked_wallet {
         );
 
         let vault = &mut ctx.accounts.vault;
-        vault.authority = authority;                //change: use parameter instead of signer
-        vault.creator = ctx.accounts.creator.key();  
-        vault.receiver = receiver;                  //for logging
+        vault.authority = authority;                //authority = vault administrator
+        vault.creator = ctx.accounts.creator.key(); //vault creator: view and retrieve rent
+        vault.receiver = receiver;                  //recipient
         vault.amount = amount;
-        vault.unlock_timestamp = unlock_timestamp;
+        vault.unlock_timestamp = unlock_timestamp;  
         vault.seed = seed;                          //seed from FE
         vault.authority_rights = authority_rights;  //bitmask rights
         vault.bump = ctx.bumps.vault;
@@ -68,9 +68,9 @@ pub mod time_locked_wallet {
         require!(now >= vault.unlock_timestamp, TimeLockError::StillLocked);
 
         let amount = vault.amount;
-        require!(amount > 0, TimeLockError::NothingToWithdraw);     //not really necessary
+        require!(amount > 0, TimeLockError::NothingToWithdraw);
 
-        // Check if vault has enough balance (need a new function to fix the amount)
+        // Check if vault has enough balance
         let vault_balance = vault.to_account_info().lamports();
         require!(vault_balance >= amount, TimeLockError::InsufficientFunds);
 
@@ -85,7 +85,10 @@ pub mod time_locked_wallet {
         Ok(())
     }
 
-    // Authority-only: update the receiver address
+    // Authority-only: Admin rights:
+        //0b0000_0001 = set_receiver: change receiver to any address
+        //0b0000_0010 = set_duration: change unlock_timestamp
+        //0b0000_0011 = both
     pub fn set_receiver(
         ctx: Context<SetReceiver>,
         new_receiver: Pubkey,
@@ -104,7 +107,7 @@ pub mod time_locked_wallet {
             TimeLockError::AuthorityMissingRight
         );
 
-        // Disallow edits after funds have been withdrawn
+        // Disallow edits after withdrawn
         require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
 
         vault.receiver = new_receiver;
@@ -116,26 +119,21 @@ pub mod time_locked_wallet {
         Ok(())
     }
 
-    // Authority-only: update the unlock timestamp
     pub fn set_duration(
         ctx: Context<SetDuration>,
         new_unlock_timestamp: i64,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
-
-        // No fallback: if authority is None, no one can modify
         require!(
             vault.authority == Some(ctx.accounts.authority.key()),
             TimeLockError::OnlyAuthority
         );
-
-        // Require right bit 1 (2)
         require!(
             (vault.authority_rights & 0b0000_0010) != 0,
             TimeLockError::AuthorityMissingRight
         );
 
-        // Disallow edits after funds have been withdrawn
+        // Disallow edits after withdrawn
         require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
 
         vault.unlock_timestamp = new_unlock_timestamp;
@@ -147,14 +145,11 @@ pub mod time_locked_wallet {
         Ok(())
     }
 
-    // Creator-only: manually close the vault account (after amount == 0)
+    // Creator only: manually close the vault account (after amount == 0)
     pub fn close_vault(ctx: Context<CloseVault>) -> Result<()> {
         let vault = &ctx.accounts.vault;
-        // Only creator can close
         require!(ctx.accounts.creator.key() == vault.creator, TimeLockError::OnlyCreator);
-        // Must be fully withdrawn first
         require!(vault.amount == 0, TimeLockError::NonZeroBalance);
-        // Account will be closed by the `close = creator` constraint
         Ok(())
     }
 }
@@ -195,12 +190,10 @@ pub struct Withdraw<'info> {
     )]
     pub vault: Account<'info, TimeLock>,
 
-    // This is the receiver account that will receive the Fund
     #[account(mut, address = vault.receiver)]
     pub receiver: Signer<'info>,
 
-    // This is the creator account that will receive the rent refund
-        #[account(mut, address = vault.creator)]
+    #[account(mut, address = vault.creator)]
     pub creator_account: SystemAccount<'info>,
 }
 
@@ -217,9 +210,7 @@ pub struct SetReceiver<'info> {
         bump = vault.bump,
     )]
     pub vault: Account<'info, TimeLock>,
-
-    // Must match vault.authority (checked in handler)
-    pub authority: Signer<'info>,
+    pub authority: Signer<'info>,       //only authority (checked in handler)
 }
 
 #[derive(Accounts)]
@@ -235,9 +226,7 @@ pub struct SetDuration<'info> {
         bump = vault.bump,
     )]
     pub vault: Account<'info, TimeLock>,
-
-    // Must match vault.authority (checked in handler)
-    pub authority: Signer<'info>,
+    pub authority: Signer<'info>,       //only authority (checked in handler)
 }
 
 #[derive(Accounts)]
@@ -255,17 +244,17 @@ pub struct CloseVault<'info> {
     pub vault: Account<'info, TimeLock>,
 
     #[account(mut, address = vault.creator)]
-    pub creator: Signer<'info>,
+    pub creator: Signer<'info>,         //only creator
 }
 #[account]
 pub struct TimeLock {
-    pub creator: Pubkey,      //Who created and funded
-    pub authority: Option<Pubkey>,    //Who have admin right
+    pub creator: Pubkey,                //Who created and funded
+    pub authority: Option<Pubkey>,      //Who have admin right
     pub receiver: Pubkey,
     pub amount: u64,
     pub unlock_timestamp: i64,
     pub seed: u64,
-    pub authority_rights: u8, // bitmask: 1=set_receiver, 2=set_duration
+    pub authority_rights: u8,           //bitmask: 1=set_receiver, 2=set_duration
     pub bump: u8,
 }
 impl TimeLock {
