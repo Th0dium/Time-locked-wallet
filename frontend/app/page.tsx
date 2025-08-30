@@ -17,6 +17,15 @@ function formatTzLabel(offsetMin: number) {
   return `UTC${sign}${pad2(hh)}${mm ? ":" + pad2(mm) : ""}`;
 }
 const TZ_OFFSETS: number[] = Array.from({ length: ((14 - -12) * 60) / 30 + 1 }, (_, i) => -12 * 60 + i * 30);
+function formatCountdown(totalSeconds: number) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const hms = `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
+  return d > 0 ? `${d}d ${hms}` : hms;
+}
 function defaultUnlockMs(offsetMin = 0) {
   // default now + 2 minutes, represented in given timezone
   const ms = Date.now() + 120_000;
@@ -50,6 +59,23 @@ const WalletMultiButton = dynamic(
   { ssr: false }
 );
 
+function fmtAuthority(auth: any): string {
+  if (auth === null || auth === undefined) return "None";
+  try {
+    if (typeof auth?.toBase58 === "function") return auth.toBase58();
+    if (auth?.some !== undefined) {
+      const v = auth.some;
+      if (v === null || v === undefined) return "None";
+      if (typeof v?.toBase58 === "function") return v.toBase58();
+      if (typeof v === "string") return v;
+      if (Array.isArray(v)) return new PublicKey(v).toBase58();
+    }
+    if (typeof auth === "string") return auth;
+    if (Array.isArray(auth)) return new PublicKey(auth).toBase58();
+  } catch {}
+  return "Unknown";
+}
+
 export default function Home() {
   const wallet = useWallet();
   const [tab, setTab] = useState<"create" | "admin" | "withdraw">("create");
@@ -57,11 +83,14 @@ export default function Home() {
   // Cache data across tabs; fetch once after wallet connects
   const [adminVaults, setAdminVaults] = useState<any[]>([]);
   const [withdrawVaults, setWithdrawVaults] = useState<any[]>([]);
+  const [creatorVaults, setCreatorVaults] = useState<any[]>([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
   const [loadingWithdraw, setLoadingWithdraw] = useState(false);
+  const [loadingCreator, setLoadingCreator] = useState(false);
   const initialFetchedForWallet = useRef<string | null>(null);
   const [adminCooldownUntil, setAdminCooldownUntil] = useState<number | null>(null);
   const [withdrawCooldownUntil, setWithdrawCooldownUntil] = useState<number | null>(null);
+  const [creatorCooldownUntil, setCreatorCooldownUntil] = useState<number | null>(null);
 
   const fetchAdmin = useCallback(async () => {
     if (!wallet.connected || !wallet.publicKey) return;
@@ -101,6 +130,18 @@ export default function Home() {
     finally { setLoadingWithdraw(false); }
   }, [wallet]);
 
+  const fetchCreator = useCallback(async () => {
+    if (!wallet.connected || !wallet.publicKey) return;
+    setLoadingCreator(true);
+    try {
+      const program = getProgram(wallet);
+      const pkb58 = wallet.publicKey.toBase58();
+      const all = await program.account.timeLock.all([{ memcmp: { offset: 8, bytes: pkb58 } }]);
+      setCreatorVaults(all);
+    } catch (e) { console.error(e); }
+    finally { setLoadingCreator(false); }
+  }, [wallet]);
+
   // Initial fetch after wallet connects (page load / reload)
   useEffect(() => {
     const pk = wallet.publicKey?.toBase58();
@@ -109,7 +150,8 @@ export default function Home() {
     initialFetchedForWallet.current = pk;
     fetchAdmin();
     fetchWithdraw();
-  }, [wallet.connected, wallet.publicKey, fetchAdmin, fetchWithdraw]);
+    fetchCreator();
+  }, [wallet.connected, wallet.publicKey, fetchAdmin, fetchWithdraw, fetchCreator]);
 
   // Manual refresh with 5s cooldown per tab
   const handleAdminRefresh = useCallback(async () => {
@@ -128,6 +170,14 @@ export default function Home() {
     await fetchWithdraw();
   }, [fetchWithdraw, withdrawCooldownUntil]);
 
+  const handleCreatorRefresh = useCallback(async () => {
+    const now = Date.now();
+    if (creatorCooldownUntil && now < creatorCooldownUntil) return;
+    setCreatorCooldownUntil(now + 5000);
+    setTimeout(() => setCreatorCooldownUntil(null), 5000);
+    await fetchCreator();
+  }, [fetchCreator, creatorCooldownUntil]);
+
   return (
     <div className="min-h-screen p-6 text-sm flex flex-col items-center">
       <header className="w-full max-w-4xl flex items-center justify-between mb-6">
@@ -141,7 +191,14 @@ export default function Home() {
         <button className={btnCls(tab === "withdraw")} onClick={() => setTab("withdraw")}>Withdraw</button>
       </nav>
 
-      {tab === "create" && <CreateVault />}
+      {tab === "create" && (
+        <CreateVault
+          creatorVaults={creatorVaults}
+          loadingCreator={loadingCreator}
+          onRefreshCreator={handleCreatorRefresh}
+          refreshDisabledCreator={!!(creatorCooldownUntil && Date.now() < creatorCooldownUntil)}
+        />
+      )}
       {tab === "admin" && (
         <AdminView
           vaults={adminVaults}
@@ -166,7 +223,17 @@ function btnCls(active: boolean) {
   return `btn ${active ? 'btn--solid' : ''}`;
 }
 
-function CreateVault() {
+function CreateVault({
+  creatorVaults,
+  loadingCreator,
+  onRefreshCreator,
+  refreshDisabledCreator,
+}: {
+  creatorVaults: any[];
+  loadingCreator: boolean;
+  onRefreshCreator: () => Promise<void> | void;
+  refreshDisabledCreator: boolean;
+}) {
   const wallet = useWallet();
   const [amountSol, setAmountSol] = useState(0.1);
   const [unlockDate, setUnlockDate] = useState<string>("");
@@ -242,6 +309,8 @@ function CreateVault() {
         })
         .rpc();
       setTxSig(tx);
+      // refresh creator list after successful create
+      try { await onRefreshCreator(); } catch {}
     } catch (e: any) {
       console.error(e);
       alert(e?.error?.errorMessage || e.message || "Transaction failed");
@@ -259,7 +328,7 @@ function CreateVault() {
             value={amountSol} onChange={e=>setAmountSol(parseFloat(e.target.value||"0"))} />
         </label>
         <div className="col-span-1 space-y-1">
-          <div className="font-medium">Unlock time (UTC-first)</div>
+          <div className="font-medium">Unlock time</div>
           <div className="grid grid-cols-3 gap-2 items-center">
             <input type="date" className="col-span-2 border px-2 py-1" value={unlockDate} onChange={(e)=>setUnlockDate(e.target.value)} />
             <input type="time" className="col-span-1 border px-2 py-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
@@ -334,6 +403,30 @@ function CreateVault() {
         </div>
         {txSig && <div className="col-span-2 text-xs break-all">Tx: {txSig}</div>}
       </div>
+      {/* Creator vaults list */}
+      <div className="mt-8 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium">Vaults Created</h3>
+          <div className="flex items-center gap-2">
+            <button disabled={refreshDisabledCreator} onClick={()=>onRefreshCreator()} className="btn disabled:opacity-50">Refresh</button>
+            {loadingCreator && <span className="text-sm">Loading…</span>}
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {creatorVaults.map((v:any)=> (
+            <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-1">
+              <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
+              <div>Authority: {fmtAuthority(v.account.authority)}</div>
+              <div>Receiver: {v.account.receiver.toBase58()}</div>
+              <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
+              <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            </div>
+          ))}
+          {creatorVaults.length === 0 && (
+            <div className="text-sm text-gray-500">No vaults created by this wallet yet.</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -343,13 +436,14 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
   const [newReceiver, setNewReceiver] = useState("");
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("");
-  const [newTzOffset, setNewTzOffset] = useState<number>(0);
+  const [newTzOffset, setNewTzOffset] = useState<number>(7 * 60);
   useEffect(() => {
+    const defaultOffset = 7 * 60; // GMT+7, align with Create tab
     const ms = Date.now() + 3600_000; // +1h default
-    const { date, time } = msToDateTimeFields(ms, 0);
+    const { date, time } = msToDateTimeFields(ms, defaultOffset);
     setNewDate(date);
     setNewTime(time);
-    setNewTzOffset(0);
+    setNewTzOffset(defaultOffset);
   }, []);
 
   // Data comes from parent and persists across tabs
@@ -395,11 +489,12 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
         {vaults.map((v:any)=> (
           <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
+            <div>Authority: {fmtAuthority(v.account.authority)}</div>
             <div>Receiver: {v.account.receiver.toBase58()}</div>
             <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
             <div className="flex flex-wrap gap-2 items-center">
-              <input className="border px-2 py-1 rounded-md" placeholder="New receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
+              <input className="border px-2 py-1 rounded-md" placeholder="New Receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
               <button onClick={()=>doSetReceiver(v)} className="btn">Set Receiver</button>
             </div>
             <div className="flex flex-wrap gap-2 items-center">
@@ -422,6 +517,12 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
 
 function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
   const wallet = useWallet();
+  const [nowSec, setNowSec] = useState(Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Data comes from parent and persists across tabs
 
@@ -458,6 +559,14 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
             <div>Amount: {Number(v.account.amount) / 1_000_000_000} SOL</div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            <div>
+              {(() => {
+                const rem = Number(v.account.unlockTimestamp) - nowSec;
+                return rem > 0
+                  ? <>Unlocks in: {formatCountdown(rem)}</>
+                  : <>Ready to withdraw</>;
+              })()}
+            </div>
             <button onClick={()=>doWithdraw(v)} className="btn btn--solid">Withdraw</button>
           </div>
         ))}
