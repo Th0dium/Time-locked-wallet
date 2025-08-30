@@ -313,7 +313,14 @@ function CreateVault({
       // refresh creator list after successful create
       try { await onRefreshCreator(); } catch {}
     } catch (e: any) {
+      try {
+        if (typeof e?.getLogs === "function") {
+          const logs = await e.getLogs();
+          console.error("SendTransactionError logs:", logs);
+        }
+      } catch {}
       console.error(e);
+      // Some RPCs may throw "already been processed" on duplicate simulation; treat as non-fatal if tx actually landed
       alert(e?.error?.errorMessage || e.message || "Transaction failed");
     } finally {
       setBusy(false);
@@ -438,6 +445,7 @@ function CreateVault({
                         .rpc();
                       await onRefreshCreator();
                     } catch (e:any) {
+                      try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
                       console.error(e);
                       alert(e?.error?.errorMessage || e.message || 'Delete failed');
                     } finally {
@@ -485,7 +493,10 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
       await onRefresh();
-    } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
+    } catch (e:any) {
+      try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
+      alert(e?.error?.errorMessage || e.message);
+    }
   };
 
   const doSetDuration = async (vault: any) => {
@@ -501,7 +512,10 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
       await onRefresh();
-    } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
+    } catch (e:any) {
+      try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
+      alert(e?.error?.errorMessage || e.message);
+    }
   };
 
   return (
@@ -571,7 +585,10 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
         })
         .rpc();
       await onRefresh();
-    } catch (e:any) { alert(e?.error?.errorMessage || e.message); }
+    } catch (e:any) {
+      try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
+      alert(e?.error?.errorMessage || e.message);
+    }
   };
 
   return (

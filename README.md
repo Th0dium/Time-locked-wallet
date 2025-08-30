@@ -159,6 +159,13 @@ If you still see 429 on heavy traffic, use a provider endpoint (Helius/QuickNode
   - Use a dedicated RPC via `NEXT_PUBLIC_RPC_URL`
   - Rely on manual refresh (cooldown) instead of tab‑switch fetches
 
+- Simulation failed: "This transaction has already been processed"
+  - Cause: some RPCs return this on preflight simulation if a duplicate signature/message is re-sent or when simulation races with a just-processed tx. The tx can still succeed.
+  - Workarounds:
+    - Enable `NEXT_PUBLIC_SKIP_PREFLIGHT=1` to disable simulation (see `frontend/src/utils/anchor.ts`).
+    - Avoid rapid double‑clicks; the UI disables buttons while busy, but extra clicks might race before state updates.
+    - Check full logs by catching `SendTransactionError` and calling `await error.getLogs()` (the UI already logs them to console in catch blocks).
+
 ---
 
 ## Directory Layout

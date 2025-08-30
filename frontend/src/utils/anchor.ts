@@ -10,6 +10,7 @@ import { WalletContextState } from "@solana/wallet-adapter-react";
 export const PROGRAM_ID = new PublicKey("4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb");
 
 export const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
+export const SKIP_PREFLIGHT = (process.env.NEXT_PUBLIC_SKIP_PREFLIGHT || "0") === "1";
 
 export function getConnection(): Connection {
   return new Connection(DEVNET_ENDPOINT, "confirmed");
@@ -21,6 +22,9 @@ export function getProvider(wallet: WalletContextState): AnchorProvider {
   // as long as wallet.signTransaction is available (after connect)
   return new AnchorProvider(connection, wallet as any, {
     commitment: "confirmed",
+    preflightCommitment: "confirmed",
+    skipPreflight: SKIP_PREFLIGHT,
+    maxRetries: 3,
   });
 }
 
