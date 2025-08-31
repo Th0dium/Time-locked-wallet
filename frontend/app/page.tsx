@@ -105,27 +105,13 @@ export default function Home() {
   }, [wallet]);
 
   const fetchWithdraw = useCallback(async () => {
+    // Public view: show all vaults without filtering by receiver
     if (!wallet.connected || !wallet.publicKey) return;
     setLoadingWithdraw(true);
     try {
       const program = getProgram(wallet);
-      const pkb58 = wallet.publicKey.toBase58();
-      const tagNone = bs58.encode(Buffer.from([0]));
-      const tagSome = bs58.encode(Buffer.from([1]));
-      // Case authority == None: receiver at offset 8+32+1, and tag 0 at 8+32
-      const qNone = program.account.timeLock.all([
-        { memcmp: { offset: 8 + 32, bytes: tagNone } },
-        { memcmp: { offset: 8 + 32 + 1, bytes: pkb58 } },
-      ]);
-      // Case authority == Some: receiver at offset 8+32+1+32, and tag 1 at 8+32
-      const qSome = program.account.timeLock.all([
-        { memcmp: { offset: 8 + 32, bytes: tagSome } },
-        { memcmp: { offset: 8 + 32 + 1 + 32, bytes: pkb58 } },
-      ]);
-      const [r1, r2] = await Promise.all([qNone, qSome]);
-      const map = new Map<string, any>();
-      for (const v of [...r1, ...r2]) map.set(v.publicKey.toBase58(), v);
-      setWithdrawVaults(Array.from(map.values()));
+      const all = await program.account.timeLock.all();
+      setWithdrawVaults(all);
     } catch (e) { console.error(e); }
     finally { setLoadingWithdraw(false); }
   }, [wallet]);

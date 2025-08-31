@@ -190,7 +190,8 @@ pub struct Withdraw<'info> {
     )]
     pub vault: Account<'info, TimeLock>,
 
-    #[account(mut, address = vault.receiver)]
+    // Public demo: allow any signer to withdraw (no address equality check)
+    #[account(mut)]
     pub receiver: Signer<'info>,
 
     #[account(mut, address = vault.creator)]
