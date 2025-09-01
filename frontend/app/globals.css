@@ -55,6 +55,10 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* (Reverted) Removed tiny address font helper */
+
+/* (Reverted) Removed compact inline date/time/TZ layout */
+
 /* Ensure form controls and borders inherit correct colors in dark mode */
 input, select, textarea, button {
   color: var(--foreground);

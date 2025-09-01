@@ -26,10 +26,9 @@ function formatCountdown(totalSeconds: number) {
   const hms = `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
   return d > 0 ? `${d}d ${hms}` : hms;
 }
-function defaultUnlockMs(offsetMin = 0) {
-  // default now + 2 minutes, represented in given timezone
-  const ms = Date.now() + 120_000;
-  return ms;
+function defaultUnlockMs() {
+  // default now + 2 minutes
+  return Date.now() + 120_000;
 }
 function msToDateTimeFields(msUTC: number, offsetMin: number) {
   // Convert a UTC ms timestamp into date/time components in the given timezone
@@ -249,7 +248,7 @@ function CreateVault({
   // Initialize default UTC time (now + 2 min) with default TZ = GMT+7
   useEffect(() => {
     const defaultOffset = 7 * 60;
-    const ms = defaultUnlockMs(defaultOffset);
+    const ms = defaultUnlockMs();
     const { date, time } = msToDateTimeFields(ms, defaultOffset);
     setUnlockDate(date);
     setUnlockTime(time);
@@ -417,15 +416,17 @@ function CreateVault({
         </div>
         <div className="grid gap-3">
           {creatorVaults.map((v:any)=> (
-            <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-1 text-sm sm:text-base leading-tight">
-              <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
-              <div className="break-all">Authority: <span className="text-emerald-500 break-all">{fmtAuthority(v.account.authority)}</span></div>
-              <div className="break-all">Receiver: <span className="text-emerald-500 break-all">{v.account.receiver.toBase58()}</span></div>
+            <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-1 text-xs sm:text-base leading-tight">
+              <div>Vault:</div>
+              <div className="break-all text-gray-500">{v.publicKey.toBase58()}</div>
+              <div>Authority:</div>
+              <div className="break-all text-emerald-500">{fmtAuthority(v.account.authority)}</div>
+              <div>Receiver:</div>
+              <div className="break-all text-emerald-500">{v.account.receiver.toBase58()}</div>
             <div>
               Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
               <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
-              <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
               <div>
                 <button
                   className="btn"
@@ -523,15 +524,17 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
-            <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
-            <div className="break-all">Authority: <span className="text-emerald-500 break-all">{fmtAuthority(v.account.authority)}</span></div>
-            <div className="break-all">Receiver: <span className="text-emerald-500 break-all">{v.account.receiver.toBase58()}</span></div>
+          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-xs sm:text-base leading-tight">
+            <div>Vault:</div>
+            <div className="break-all text-gray-500">{v.publicKey.toBase58()}</div>
+            <div>Authority:</div>
+            <div className="break-all text-emerald-500">{fmtAuthority(v.account.authority)}</div>
+            <div>Receiver:</div>
+            <div className="break-all text-emerald-500">{v.account.receiver.toBase58()}</div>
             <div>
               Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
-            <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
             <div className="flex flex-wrap gap-2 items-center">
               <input className="border px-2 py-1 rounded-md" placeholder="New Receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
               <button onClick={()=>doSetReceiver(v)} className="btn">Set Receiver</button>
@@ -597,13 +600,13 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
-            <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
+          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-xs sm:text-base leading-tight">
+            <div>Vault:</div>
+            <div className="break-all text-gray-500">{v.publicKey.toBase58()}</div>
               <div>
                 Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
               </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
-            <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
             <div>
               {(() => {
                 const rem = Number(v.account.unlockTimestamp) - nowSec;
