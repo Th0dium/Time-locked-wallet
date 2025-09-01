@@ -49,6 +49,12 @@ body {
   color-scheme: light dark;
 }
 
+/* Vault cards: ensure long base58 strings wrap gracefully on mobile */
+.vault-card {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* Ensure form controls and borders inherit correct colors in dark mode */
 input, select, textarea, button {
   color: var(--foreground);

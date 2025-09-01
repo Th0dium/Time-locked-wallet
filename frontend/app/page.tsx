@@ -422,10 +422,10 @@ function CreateVault({
         </div>
         <div className="grid gap-3">
           {creatorVaults.map((v:any)=> (
-            <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-1">
+            <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-1 text-sm sm:text-base leading-tight">
               <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
-              <div>Authority: {fmtAuthority(v.account.authority)}</div>
-              <div>Receiver: {v.account.receiver.toBase58()}</div>
+              <div className="break-all">Authority: {fmtAuthority(v.account.authority)}</div>
+              <div className="break-all">Receiver: {v.account.receiver.toBase58()}</div>
             <div>
               Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
@@ -527,10 +527,10 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
+          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
-            <div>Authority: {fmtAuthority(v.account.authority)}</div>
-            <div>Receiver: {v.account.receiver.toBase58()}</div>
+            <div className="break-all">Authority: {fmtAuthority(v.account.authority)}</div>
+            <div className="break-all">Receiver: {v.account.receiver.toBase58()}</div>
             <div>
               Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
@@ -600,7 +600,7 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
-          <div key={v.publicKey.toBase58()} className="border rounded-md p-3 space-y-2">
+          <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
             <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
               <div>
                 Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
