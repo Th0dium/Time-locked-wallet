@@ -384,11 +384,6 @@ function CreateVault({
             <button
               type="button"
               className="btn"
-              onClick={()=> setAuthorityInput("")}
-            >Clear</button>
-            <button
-              type="button"
-              className="btn"
               onClick={()=> setAuthorityInput(wallet.publicKey?.toBase58() || "")}
             >Self</button>
           </div>
@@ -423,13 +418,14 @@ function CreateVault({
         <div className="grid gap-3">
           {creatorVaults.map((v:any)=> (
             <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-1 text-sm sm:text-base leading-tight">
-              <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
-              <div className="break-all">Authority: {fmtAuthority(v.account.authority)}</div>
-              <div className="break-all">Receiver: {v.account.receiver.toBase58()}</div>
+              <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
+              <div className="break-all">Authority: <span className="text-emerald-500 break-all">{fmtAuthority(v.account.authority)}</span></div>
+              <div className="break-all">Receiver: <span className="text-emerald-500 break-all">{v.account.receiver.toBase58()}</span></div>
             <div>
-              Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+              Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
               <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+              <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
               <div>
                 <button
                   className="btn"
@@ -528,13 +524,14 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
           <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
-            <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
-            <div className="break-all">Authority: {fmtAuthority(v.account.authority)}</div>
-            <div className="break-all">Receiver: {v.account.receiver.toBase58()}</div>
+            <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
+            <div className="break-all">Authority: <span className="text-emerald-500 break-all">{fmtAuthority(v.account.authority)}</span></div>
+            <div className="break-all">Receiver: <span className="text-emerald-500 break-all">{v.account.receiver.toBase58()}</span></div>
             <div>
-              Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+              Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
             <div className="flex flex-wrap gap-2 items-center">
               <input className="border px-2 py-1 rounded-md" placeholder="New Receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
               <button onClick={()=>doSetReceiver(v)} className="btn">Set Receiver</button>
@@ -601,11 +598,12 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
           <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-sm sm:text-base leading-tight">
-            <div className="text-xs break-all">Vault: {v.publicKey.toBase58()}</div>
+            <div className="text-xs break-all">Vault: <span className="text-emerald-500 break-all">{v.publicKey.toBase58()}</span></div>
               <div>
-                Amount: {Number(v.account.amount) / 1_000_000_000} SOL{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+                Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
               </div>
             <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            <div>Seed: <span className="text-gray-500">{String((v.account as any).seed)}</span></div>
             <div>
               {(() => {
                 const rem = Number(v.account.unlockTimestamp) - nowSec;
