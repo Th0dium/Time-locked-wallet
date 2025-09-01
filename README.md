@@ -174,7 +174,7 @@ Time-locked-wallet/
 │  │  ├─ page.tsx                   # UI (Create/Admin/Withdraw)
 │  │  └─ providers.tsx              # Wallet + connection provider
 │  └─ src/utils/anchor.ts           # Anchor client + PROGRAM_ID
-├─ tests/                           # Example tests (need update to new API)
+├─ tests/                           # Example tests 
 └─ README.md                        # This file
 ```
 
