@@ -91,6 +91,7 @@ export default function Home() {
   const [adminCooldownUntil, setAdminCooldownUntil] = useState<number | null>(null);
   const [withdrawCooldownUntil, setWithdrawCooldownUntil] = useState<number | null>(null);
   const [creatorCooldownUntil, setCreatorCooldownUntil] = useState<number | null>(null);
+  const [showAllCreatorVaults, setShowAllCreatorVaults] = useState(false);
 
   const fetchAdmin = useCallback(async () => {
     if (!wallet.connected || !wallet.publicKey) return;
@@ -121,12 +122,17 @@ export default function Home() {
     setLoadingCreator(true);
     try {
       const program = getProgram(wallet);
-      const pkb58 = wallet.publicKey.toBase58();
-      const all = await program.account.timeLock.all([{ memcmp: { offset: 8, bytes: pkb58 } }]);
+      let all: any[];
+      if (showAllCreatorVaults) {
+        all = await program.account.timeLock.all();
+      } else {
+        const pkb58 = wallet.publicKey.toBase58();
+        all = await program.account.timeLock.all([{ memcmp: { offset: 8, bytes: pkb58 } }]);
+      }
       setCreatorVaults(all);
     } catch (e) { console.error(e); }
     finally { setLoadingCreator(false); }
-  }, [wallet]);
+  }, [wallet, showAllCreatorVaults]);
 
   // Initial fetch after wallet connects (page load / reload)
   useEffect(() => {
@@ -183,6 +189,8 @@ export default function Home() {
           loadingCreator={loadingCreator}
           onRefreshCreator={handleCreatorRefresh}
           refreshDisabledCreator={!!(creatorCooldownUntil && Date.now() < creatorCooldownUntil)}
+          showAllCreatorVaults={showAllCreatorVaults}
+          onToggleShowAllCreatorVaults={() => { setShowAllCreatorVaults(v => !v); setTimeout(()=>{ /* trigger fetch next tick */ fetchCreator(); }, 0); }}
         />
       )}
       {tab === "admin" && (
@@ -214,11 +222,15 @@ function CreateVault({
   loadingCreator,
   onRefreshCreator,
   refreshDisabledCreator,
+  showAllCreatorVaults,
+  onToggleShowAllCreatorVaults,
 }: {
   creatorVaults: any[];
   loadingCreator: boolean;
   onRefreshCreator: () => Promise<void> | void;
   refreshDisabledCreator: boolean;
+  showAllCreatorVaults: boolean;
+  onToggleShowAllCreatorVaults: () => void;
 }) {
   const wallet = useWallet();
   const [amountSol, setAmountSol] = useState(0.1);
@@ -400,8 +412,12 @@ function CreateVault({
       {/* Creator vaults list */}
       <div className="mt-8 space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium">Vaults Created</h3>
+          <h3 className="font-medium">{showAllCreatorVaults ? 'All Vaults' : 'Vaults Created'}</h3>
           <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1 text-xs">
+              <input type="checkbox" checked={showAllCreatorVaults} onChange={onToggleShowAllCreatorVaults} />
+              Show all
+            </label>
             <button disabled={refreshDisabledCreator} onClick={()=>onRefreshCreator()} className="btn disabled:opacity-50">Refresh</button>
             {loadingCreator && <span className="text-sm">Loading…</span>}
           </div>
@@ -427,7 +443,7 @@ function CreateVault({
                       const program = getProgram(wallet);
                       await program.methods
                         .closeVault()
-                        .accounts({ vault: v.publicKey.toBase58(), creator: wallet.publicKey.toBase58() })
+                        .accounts({ vault: v.publicKey.toBase58(), creator: v.account.creator.toBase58() })
                         .rpc();
                       await onRefreshCreator();
                     } catch (e:any) {
@@ -443,7 +459,7 @@ function CreateVault({
             </div>
           ))}
           {creatorVaults.length === 0 && (
-            <div className="text-sm text-gray-500">No vaults found for your address.</div>
+            <div className="text-sm text-gray-500">No vaults found.</div>
           )}
         </div>
       </div>

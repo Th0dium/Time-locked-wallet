@@ -145,10 +145,10 @@ pub mod time_locked_wallet {
         Ok(())
     }
 
-    // Creator only: manually close the vault account (after amount == 0)
+    // Permissionless GC: anyone can close after funds withdrawn (amount == 0).
+    // Rent is returned to `creator` via the `close = creator` attribute.
     pub fn close_vault(ctx: Context<CloseVault>) -> Result<()> {
         let vault = &ctx.accounts.vault;
-        require!(ctx.accounts.creator.key() == vault.creator, TimeLockError::OnlyCreator);
         require!(vault.amount == 0, TimeLockError::NonZeroBalance);
         Ok(())
     }
@@ -245,7 +245,7 @@ pub struct CloseVault<'info> {
     pub vault: Account<'info, TimeLock>,
 
     #[account(mut, address = vault.creator)]
-    pub creator: Signer<'info>,         //only creator
+    pub creator: SystemAccount<'info>,
 }
 #[account]
 pub struct TimeLock {
