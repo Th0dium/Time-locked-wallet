@@ -179,16 +179,16 @@ export default function Home() {
   }, [fetchCreator, creatorCooldownUntil]);
 
   return (
-    <div className="min-h-screen p-6 text-sm flex flex-col items-center">
+    <div className="min-h-screen p-4 sm:p-6 text-base sm:text-sm flex flex-col items-center">
       <header className="w-full max-w-4xl flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold">Time-Locked Wallet (Devnet)</h1>
         <WalletMultiButton />
       </header>
 
-      <nav className="w-full max-w-4xl flex gap-2 mb-4 justify-center">
-        <button className={btnCls(tab === "create")} onClick={() => setTab("create")}>Create Vault</button>
-        <button className={btnCls(tab === "admin")} onClick={() => setTab("admin")}>Administrator</button>
-        <button className={btnCls(tab === "withdraw")} onClick={() => setTab("withdraw")}>Withdraw</button>
+      <nav className="w-full max-w-4xl flex flex-wrap gap-2 mb-4 justify-center">
+        <button className={btnCls(tab === "create") + " w-full sm:w-auto"} onClick={() => setTab("create")}>Create Vault</button>
+        <button className={btnCls(tab === "admin") + " w-full sm:w-auto"} onClick={() => setTab("admin")}>Administrator</button>
+        <button className={btnCls(tab === "withdraw") + " w-full sm:w-auto"} onClick={() => setTab("withdraw")}>Withdraw</button>
       </nav>
 
       {tab === "create" && (
@@ -330,7 +330,7 @@ function CreateVault({
   return (
     <div className="w-full max-w-xl space-y-3">
       <h2 className="text-lg font-semibold">Create Vault</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="col-span-1">Amount (SOL)
           <input type="number" step="0.000000001" className="w-full border px-2 py-1"
             value={amountSol} onChange={e=>setAmountSol(parseFloat(e.target.value||"0"))} />
