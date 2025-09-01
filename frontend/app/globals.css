@@ -119,3 +119,13 @@ a { color: var(--link); }
   filter: brightness(0.95);
   transform: translateY(0) scale(0.98);
 }
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  /* Avoid iOS zoom on focus by keeping font-size >= 16px */
+  input, select, textarea, button { font-size: 16px; }
+  /* Make buttons easier to tap */
+  .btn { padding: 0.625rem 0.875rem; min-height: 44px; }
+  /* Wallet button full-width on small screens */
+  .wallet-adapter-button { width: 100%; justify-content: center; }
+}

@@ -180,7 +180,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 text-base sm:text-sm flex flex-col items-center">
-      <header className="w-full max-w-4xl flex items-center justify-between mb-6">
+      <header className="w-full max-w-4xl flex flex-col sm:flex-row gap-3 sm:gap-0 items-stretch sm:items-center justify-between mb-6">
         <h1 className="text-xl font-semibold">Time-Locked Wallet (Devnet)</h1>
         <WalletMultiButton />
       </header>
@@ -337,9 +337,9 @@ function CreateVault({
         </label>
         <div className="col-span-1 space-y-1">
           <div className="font-medium">Unlock time</div>
-          <div className="grid grid-cols-3 gap-2 items-center">
-            <input type="date" className="col-span-2 border px-2 py-1" value={unlockDate} onChange={(e)=>setUnlockDate(e.target.value)} />
-            <input lang="en-US" type="time" className="col-span-1 border px-2 py-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+            <input type="date" className="border px-2 py-1 sm:col-span-2" value={unlockDate} onChange={(e)=>setUnlockDate(e.target.value)} />
+            <input type="time" className="border px-2 py-1 sm:col-span-1" step={60} value={unlockTime} onChange={(e)=>setUnlockTime(e.target.value)} />
           </div>
           <div>
             <label className="text-xs">Timezone</label>
