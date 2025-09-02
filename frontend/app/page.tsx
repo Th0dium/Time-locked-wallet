@@ -582,19 +582,18 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }
 function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean; onRefreshAll: () => Promise<void> | void }) {
   const wallet = useWallet();
   const [nowSec, setNowSec] = useState(Math.floor(Date.now() / 1000));
+  const [skipTimeCheck, setSkipTimeCheck] = useState(false); // New state for checkbox
 
   useEffect(() => {
     const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Data comes from parent and persists across tabs
-
   const doWithdraw = async (vault:any) => {
     try {
-      // Pre-check: if still locked, warn and skip tx
+      // Pre-check: if still locked, warn and skip tx unless skipTimeCheck is true
       const now = Math.floor(Date.now()/1000);
-      if (now < Number(vault.account.unlockTimestamp)) {
+      if (!skipTimeCheck && now < Number(vault.account.unlockTimestamp)) {
         return alert("Still locked. Please wait until unlock time.");
       }
       const program = getProgram(wallet);
@@ -619,15 +618,19 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAl
       <div className="flex gap-2 items-center justify-center">
         <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="btn disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
+        <label className="ml-4 flex items-center gap-1">
+          <input type="checkbox" checked={skipTimeCheck} onChange={e => setSkipTimeCheck(e.target.checked)} />
+          Bypass Frontend time check (for testing)
+        </label>
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
           <div key={v.publicKey.toBase58()} className="vault-card border rounded-md p-2 sm:p-3 space-y-2 text-xs sm:text-base leading-tight">
             <div>Vault:</div>
             <div className="break-all text-gray-500">{v.publicKey.toBase58()}</div>
-              <div>
-                Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
-              </div>
+            <div>
+              Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
+            </div>
             <div>
               {Number(v.account.amount) === 0
                 ? <>Withdrawn at {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleTimeString()}</>
@@ -637,7 +640,6 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAl
               {(() => {
                 const rem = Number(v.account.unlockTimestamp) - nowSec;
                 if (rem > 0) return <>Unlocks in: {formatCountdown(rem)}</>;
-                // Already unlocked
                 return Number(v.account.amount) === 0
                   ? <>There is nothing to withdraw</>
                   : <>Ready to withdraw</>;
