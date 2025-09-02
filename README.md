@@ -16,12 +16,12 @@ Deployed to Devnet with a live demo.
 
 ### Quick Demo (Devnet)
 1. Setup a wallet (Phantom, Solflare, Backpack) on Devnet *(do not use a wallet with real assets)*.  
-2. Airdrop 2 SOL.  
+2. Airdrop 1-2 SOL.  
 3. **Create Vault:** amount `0.1 SOL`, unlock = now + 2 minutes, receiver = your wallet.  
 4. **Withdraw:**  
    - Before unlock → on-chain withdraw fails.  
    - After unlock → click `Withdraw`. UI shows “Withdrawn at HH:MM:SS”.  
-5. **Clean up:** when amount = 0, click `Delete Vaults` (reclaims rent).  
+5. **Clean up:** when amount = 0, click `Delete Vault` (reclaims rent).  
 
 
 ## 💡 Features

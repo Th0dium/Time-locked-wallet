@@ -87,7 +87,6 @@ pub mod time_locked_wallet {
         msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
         Ok(())
     }
-d
     // Authority-only: Admin rights:    (other bits can be used for future configuration setting)
         //0b0000_0001 = set_receiver: change receiver to any address
         //0b0000_0010 = set_duration: change unlock_timestamp
