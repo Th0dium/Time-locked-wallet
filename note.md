@@ -75,6 +75,7 @@ Both: rights = 3
 - Amount semantics: withdraw uses the stored `amount`. Extra lamports sent later are returned to the creator when the account is closed.
 - After withdrawal (`amount == 0`):
   - Authority cannot modify vault (set_receiver, set_duration will fail with `AlreadyWithdrawn`).
+  - `unlock_timestamp` is overwritten with the claim time (`now`) during `withdraw`; FE displays it as "Withdrawn at HH:MM:SS".
   - Withdraw tab shows status "Withdrawn" and disables the Withdraw button.
   - Creator can delete (close) the vault from the "Vaults Created" list once `amount == 0`.
 - Frontend UX:

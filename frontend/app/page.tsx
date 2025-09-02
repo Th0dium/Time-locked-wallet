@@ -151,6 +151,15 @@ export default function Home() {
     fetchWithdraw();
     fetchCreator();
   }, [wallet.connected, wallet.publicKey, fetchAdmin, fetchWithdraw, fetchCreator]);
+  
+  // Refresh all lists (bypass cooldowns). Use after mutating actions.
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      (async () => { try { await fetchAdmin(); } catch {} })(),
+      (async () => { try { await fetchWithdraw(); } catch {} })(),
+      (async () => { try { await fetchCreator(); } catch {} })(),
+    ]);
+  }, [fetchAdmin, fetchWithdraw, fetchCreator]);
 
   // Manual refresh with 5s cooldown per tab
   const handleAdminRefresh = useCallback(async () => {
@@ -196,6 +205,7 @@ export default function Home() {
           loadingCreator={loadingCreator}
           onRefreshCreator={handleCreatorRefresh}
           refreshDisabledCreator={!!(creatorCooldownUntil && Date.now() < creatorCooldownUntil)}
+          onRefreshAll={refreshAll}
         />
       )}
       {tab === "admin" && (
@@ -204,6 +214,7 @@ export default function Home() {
           loading={loadingAdmin}
           onRefresh={handleAdminRefresh}
           refreshDisabled={!!(adminCooldownUntil && Date.now() < adminCooldownUntil)}
+          onRefreshAll={refreshAll}
         />
       )}
       {tab === "withdraw" && (
@@ -212,6 +223,7 @@ export default function Home() {
           loading={loadingWithdraw}
           onRefresh={handleWithdrawRefresh}
           refreshDisabled={!!(withdrawCooldownUntil && Date.now() < withdrawCooldownUntil)}
+          onRefreshAll={refreshAll}
         />
       )}
     </div>
@@ -227,11 +239,13 @@ function CreateVault({
   loadingCreator,
   onRefreshCreator,
   refreshDisabledCreator,
+  onRefreshAll,
 }: {
   creatorVaults: any[];
   loadingCreator: boolean;
   onRefreshCreator: () => Promise<void> | void;
   refreshDisabledCreator: boolean;
+  onRefreshAll: () => Promise<void> | void;
 }) {
   const wallet = useWallet();
   const [amountSol, setAmountSol] = useState(0.1);
@@ -309,8 +323,8 @@ function CreateVault({
         })
         .rpc();
       setTxSig(tx);
-      // refresh creator list after successful create
-      try { await onRefreshCreator(); } catch {}
+      // refresh all lists after successful create
+      try { await onRefreshAll(); } catch {}
     } catch (e: any) {
       try {
         if (typeof e?.getLogs === "function") {
@@ -426,7 +440,11 @@ function CreateVault({
             <div>
               Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
-              <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+              <div>
+                {Number(v.account.amount) === 0
+                  ? <>Withdrawn at {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleTimeString()}</>
+                  : <>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</>}
+              </div>
               <div>
                 <button
                   className="btn"
@@ -440,7 +458,7 @@ function CreateVault({
                         .closeVault()
                         .accounts({ vault: v.publicKey.toBase58(), creator: wallet.publicKey.toBase58() })
                         .rpc();
-                      await onRefreshCreator();
+                      await onRefreshAll();
                     } catch (e:any) {
                       try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
                       console.error(e);
@@ -462,7 +480,7 @@ function CreateVault({
   );
 }
 
-function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
+function AdminView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean; onRefreshAll: () => Promise<void> | void }) {
   const wallet = useWallet();
   const [newReceiver, setNewReceiver] = useState("");
   const [newDate, setNewDate] = useState<string>("");
@@ -489,7 +507,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
         .setReceiver(pk)
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
-      await onRefresh();
+      await onRefreshAll();
     } catch (e:any) {
       try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
       alert(e?.error?.errorMessage || e.message);
@@ -508,7 +526,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
         .setDuration(new BN(ts))
         .accounts({ vault: vault.publicKey.toBase58(), authority: wallet.publicKey?.toBase58() as string })
         .rpc();
-      await onRefresh();
+      await onRefreshAll();
     } catch (e:any) {
       try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
       alert(e?.error?.errorMessage || e.message);
@@ -534,7 +552,11 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
             <div>
               Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
             </div>
-            <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            <div>
+              {Number(v.account.amount) === 0
+                ? <>Withdrawn at {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleTimeString()}</>
+                : <>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</>}
+            </div>
             <div className="flex flex-wrap gap-2 items-center">
               <input className="border px-2 py-1 rounded-md" placeholder="New Receiver" value={newReceiver} onChange={e=>setNewReceiver(e.target.value)} />
               <button onClick={()=>doSetReceiver(v)} className="btn">Set Receiver</button>
@@ -557,7 +579,7 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: an
   );
 }
 
-function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean }) {
+function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean; onRefreshAll: () => Promise<void> | void }) {
   const wallet = useWallet();
   const [nowSec, setNowSec] = useState(Math.floor(Date.now() / 1000));
 
@@ -584,7 +606,7 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
           creatorAccount: vault.account.creator.toBase58(),
         })
         .rpc();
-      await onRefresh();
+      await onRefreshAll();
     } catch (e:any) {
       try { if (typeof e?.getLogs === 'function') console.error('SendTransactionError logs:', await e.getLogs()); } catch {}
       alert(e?.error?.errorMessage || e.message);
@@ -606,7 +628,11 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled }: { vaults:
               <div>
                 Amount: <span className="text-purple-500">{Number(v.account.amount) / 1_000_000_000} SOL</span>{Number(v.account.amount) === 0 ? " (Claimed)" : ""}
               </div>
-            <div>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</div>
+            <div>
+              {Number(v.account.amount) === 0
+                ? <>Withdrawn at {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleTimeString()}</>
+                : <>Unlock: {new Date(Number(v.account.unlockTimestamp) * 1000).toLocaleString()}</>}
+            </div>
             <div>
               {(() => {
                 const rem = Number(v.account.unlockTimestamp) - nowSec;

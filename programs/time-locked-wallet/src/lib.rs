@@ -79,7 +79,10 @@ pub mod time_locked_wallet {
         let mut receiver_ai = ctx.accounts.receiver.to_account_info();
         **vault_ai.try_borrow_mut_lamports()? -= amount;
         **receiver_ai.try_borrow_mut_lamports()? += amount;
+        // Mark as withdrawn: set recorded amount to 0 and repurpose unlock_timestamp
+        // as the claimed timestamp for frontend display and auditing.
         vault.amount = 0;
+        vault.unlock_timestamp = now;
 
         msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
         Ok(())
