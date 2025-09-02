@@ -70,7 +70,7 @@ pub mod time_locked_wallet {
         let amount = vault.amount;
         require!(amount > 0, TimeLockError::NothingToWithdraw);
 
-        // Check if vault has enough balance
+        // Check if vault has enough balance (safety check)
         let vault_balance = vault.to_account_info().lamports();
         require!(vault_balance >= amount, TimeLockError::InsufficientFunds);
 
@@ -79,16 +79,16 @@ pub mod time_locked_wallet {
         let mut receiver_ai = ctx.accounts.receiver.to_account_info();
         **vault_ai.try_borrow_mut_lamports()? -= amount;
         **receiver_ai.try_borrow_mut_lamports()? += amount;
-        // Mark as withdrawn: set recorded amount to 0 and repurpose unlock_timestamp
-        // as the claimed timestamp for frontend display and auditing.
-        vault.amount = 0;
+
+        vault.amount = 0;   
+        // Repurpose unlock_timestamp as the claimed timestamp for frontend display.
         vault.unlock_timestamp = now;
 
         msg!("Withdrawn {} lamports from time lock to {}", amount, ctx.accounts.receiver.key());
         Ok(())
     }
-
-    // Authority-only: Admin rights:
+d
+    // Authority-only: Admin rights:    (other bits can be used for future configuration setting)
         //0b0000_0001 = set_receiver: change receiver to any address
         //0b0000_0010 = set_duration: change unlock_timestamp
         //0b0000_0011 = both
@@ -97,19 +97,16 @@ pub mod time_locked_wallet {
         new_receiver: Pubkey,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
-
         // Verify authority
         require!(
             vault.authority == Some(ctx.accounts.authority.key()),
             TimeLockError::OnlyAuthority
         );
-
         // Check authority_right
         require!(
             (vault.authority_rights & 0b0000_0001) != 0,
             TimeLockError::AuthorityMissingRight
         );
-
         // Disallow edits after withdrawn
         require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
 
@@ -127,15 +124,16 @@ pub mod time_locked_wallet {
         new_unlock_timestamp: i64,
     ) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
+        // Verify authority
         require!(
             vault.authority == Some(ctx.accounts.authority.key()),
             TimeLockError::OnlyAuthority
         );
+        // Check authority_right
         require!(
             (vault.authority_rights & 0b0000_0010) != 0,
             TimeLockError::AuthorityMissingRight
         );
-
         // Disallow edits after withdrawn
         require!(vault.amount > 0, TimeLockError::AlreadyWithdrawn);
 
@@ -166,16 +164,15 @@ pub struct InitializeLock<'info> {
         space = TimeLock::LEN,
         seeds = [
             b"vault", 
-            //use creator instead of authority
             creator.key().as_ref(),
-            &seed.to_le_bytes() //unique identifier
+            &seed.to_le_bytes()
             ],
         bump
     )]
     pub vault: Account<'info, TimeLock>,
 
     #[account(mut)]
-    pub creator: Signer<'info>,  //Important: Signer = creator
+    pub creator: Signer<'info>,  //Signer = creator
 
     pub system_program: Program<'info, System>,
 }
