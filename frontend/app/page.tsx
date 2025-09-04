@@ -408,7 +408,7 @@ function CreateVault({
           <label className="col-span-2">Authority rights
             <select className="w-full border px-2 py-1" value={rights} onChange={e=>setRights(parseInt(e.target.value))}>
               <option value={1}>Change receiver</option>
-              <option value={2}>Change duration</option>
+              <option value={2}>Change unlock time</option>
               <option value={3}>Both</option>
             </select>
           </label>
