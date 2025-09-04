@@ -51,7 +51,7 @@ You can try administrator actions without switching wallets by setting yourself 
 
 Notes:
 - Admin edits are disabled after withdrawal (`amount == 0`).
-- 
+- Vault deletion is not mandatory
 ## Getting Started (Recommended: Deploy First)
 
 1) Prerequisites
@@ -116,7 +116,7 @@ solana airdrop 3
 3) Run the frontend
 ```
 cd frontend
-npm i
+npm install
 echo NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com > .env.local
 npm run dev
 ```
@@ -126,20 +126,24 @@ Open http://localhost:3000, connect a Devnet wallet (Phantom/Solflare/Backpack),
 
 Only needed if you plan to change on‑chain code or deploy your own program ID.
 
-1) Build and (optionally) deploy
+1) Build and deploy
 ```
 anchor build
+
 # Deploy to Devnet (requires enough SOL in your wallet)
 anchor deploy
 ```
 Record the new `Program Id` printed by Anchor.
 
-2) Update the frontend to point at your program
-- Edit `frontend/src/utils/anchor.ts:1` and set `PROGRAM_ID` to your new program id.
+2) Update the program ID in multiple files
+- Update the program ID in [programs.devnet] in Anchor.toml
+- Edit `programs/time-locked-wallet/src/lib.rs` and update the declare_id!() macro
+- Edit `frontend/src/utils/anchor.ts` and set `PROGRAM_ID` to your new program id.
 - Update `frontend/src/idl/time_locked_wallet.json` with the freshly built IDL from `target/idl/time_locked_wallet.json` (replace the file).
 
-3) Restart the frontend
+3) Rebuild and restart
 ```
+anchor build # Rebuild with updated program ID
 cd frontend
 npm run dev
 ```
@@ -261,3 +265,4 @@ TimeLock {
   authority_rights: u8,        // 1=set_receiver, 2=set_duration, 3=both
   bump: u8,
 }
+```
