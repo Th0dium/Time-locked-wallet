@@ -364,7 +364,7 @@ function CreateVault({
           </div>
         </div>
         <div className="col-span-2">
-          <label className="block">Receiver pubkey</label>
+          <label className="block">Receiver Pubkey</label>
           <div className="flex gap-2">
             <input
               className={`flex-1 border px-2 py-1 ${receiverInvalid ? 'border-red-500' : ''}`}
@@ -384,7 +384,7 @@ function CreateVault({
           )}
         </div>
         <div className="col-span-2">
-          <label className="block font-medium mb-1" title="Leave empty for none">Authority pubkey</label>
+          <label className="block font-medium mb-1" title="Leave empty for none">Authority Pubkey (optional)</label>
           <div className="flex gap-2">
             <input
               className={`flex-1 border px-2 py-1 ${authorityInvalid ? 'border-red-500' : ''}`}
@@ -582,7 +582,6 @@ function AdminView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }
 function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAll }: { vaults: any[]; loading: boolean; onRefresh: () => Promise<void> | void; refreshDisabled: boolean; onRefreshAll: () => Promise<void> | void }) {
   const wallet = useWallet();
   const [nowSec, setNowSec] = useState(Math.floor(Date.now() / 1000));
-  const [skipTimeCheck, setSkipTimeCheck] = useState(false); // New state for checkbox
 
   useEffect(() => {
     const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
@@ -591,11 +590,6 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAl
 
   const doWithdraw = async (vault:any) => {
     try {
-      // Pre-check: if still locked, warn and skip tx unless skipTimeCheck is true
-      const now = Math.floor(Date.now()/1000);
-      if (!skipTimeCheck && now < Number(vault.account.unlockTimestamp)) {
-        return alert("Still locked. Please wait until unlock time.");
-      }
       const program = getProgram(wallet);
       await program.methods
         .withdraw()
@@ -618,10 +612,6 @@ function WithdrawView({ vaults, loading, onRefresh, refreshDisabled, onRefreshAl
       <div className="flex gap-2 items-center justify-center">
         <button disabled={refreshDisabled} onClick={()=>onRefresh()} className="btn disabled:opacity-50">Refresh</button>
         {loading && <span>Loading…</span>}
-        <label className="ml-4 flex items-center gap-1">
-          <input type="checkbox" checked={skipTimeCheck} onChange={e => setSkipTimeCheck(e.target.checked)} />
-          Bypass Frontend time check (for testing)
-        </label>
       </div>
       <div className="grid gap-3">
         {vaults.map((v:any)=> (
