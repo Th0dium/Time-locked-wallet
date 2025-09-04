@@ -25,7 +25,7 @@ Deployed to Devnet with a live demo.
 - **URL:** [time-locked-wallet-tau.vercel.app](https://time-locked-wallet-tau.vercel.app/)  
 - **Program ID (Devnet):** `4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb`  
 
-![Demo Screenshot](./assests/home.png)
+![Demo Screenshot](./Pics/home.png)
 
 ### Quick Demo Flow (3 minutes)
 1. Setup a wallet (Phantom, Solflare, Backpack) on Devnet *(please do not use a wallet with real assets)*.  
@@ -51,7 +51,7 @@ You can try administrator actions without switching wallets by setting yourself 
   3. Go to Administrator tab: set receiver to your wallet and click `Set Receiver`.
   3. Withdraw tab: the vault now appears under your address; wait for unlock and withdraw.
 
-![Demo Screenshot](./assests/admin.png)
+![Demo Screenshot](./Pics/admin.png)
 
 Notes:
 - Admin edits are disabled after withdrawal (`amount == 0`).
@@ -252,7 +252,7 @@ TimeLock {
   bump: u8,
 }
 ```
-![Demo Screenshot](./assests/vault.png)
+![Demo Screenshot](./Pics/vault.png)
 
 ## ✅ Bounty Submission - Time-Locked Wallet on Solana
 This project was built as a submission for the Solana Developer Talent Layer bounty program organized by SuperteamVN on earn.superteam
