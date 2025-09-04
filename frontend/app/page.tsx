@@ -417,7 +417,7 @@ function CreateVault({
           <button disabled={busy || !wallet.connected} onClick={onSubmit} className="btn btn--solid disabled:opacity-50">Create</button>
           {/* Seed is generated automatically on submit */}
         </div>
-        {txSig && <div className="col-span-2 text-xs break-all">Tx: {txSig}</div>}
+        {txSig && <div className="col-span-2 text-xs break-all">Vault Created! Tx: {txSig}</div>}
       </div>
       {/* Creator vaults list */}
       <div className="mt-8 space-y-3">
