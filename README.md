@@ -25,6 +25,8 @@ Deployed to Devnet with a live demo.
 - **URL:** [time-locked-wallet-tau.vercel.app](https://time-locked-wallet-tau.vercel.app/)  
 - **Program ID (Devnet):** `4ZGMpP8pQyC9FWQ1J1W9EMR3GvyTWuY5sDotgRqadXAb`  
 
+![Demo Screenshot](./assests/Preview.png)
+
 ### Quick Demo Flow (3 minutes)
 1. Setup a wallet (Phantom, Solflare, Backpack) on Devnet *(please do not use a wallet with real assets)*.  
 2. Airdrop 1-2 SOL: get test SOL from Solana faucet (https://faucet.solana.com/)  
@@ -266,3 +268,44 @@ TimeLock {
   bump: u8,
 }
 ```
+
+## ✅ Bounty Submission - Time-Locked Wallet on Solana
+This project was built as a submission for the Solana Developer Talent Layer bounty program organized by SuperteamVN on earn.superteam
+## Requirements Completed
+- [x] initialize_lock(amount, unlock_timestamp) instruction
+- [x] withdraw() instruction  
+- [x] PDA holds locked funds
+- [x] On-chain lock enforcement 
+<br>
+<br>
+
+- [x] Frontend form for creating locks
+- [x] Display wallet state & unlock date
+- [x] Withdraw button (fails if too early)
+- [x] Phantom/Backpack wallet support
+<br>
+<br>
+
+- [x] GitHub repo with program + frontend
+- [x] This README with setup instructions
+- [x] deployed to devnet with live demo
+<br>
+<br>
+
+- [x] Add a countdown timer to unlock in the UI
+- [x] Write a simple test using Mocha/Chai or Anchor CLI
+- [ ] Use USDC (SPL token) instead of just SOL
+
+
+What started as a 7-day beginner bounty became a comprehensive DeFi primitive that goes beyond the basic requirements.
+### **📬 Contact & Links**
+- Developer: Thodium
+- My gmail: nhatduy3354@gmail.com
+- DSUC - DUT Superteam University Club (Da Nang University of Technology)
+- telegram: @Th0di
+- X(Twitter):@Th0rDium (these are dead accounts btw)
+- Project link: https://github.com/Th0dium/Time-locked-wallet
+
+*built with ❤️ and lots of coffee by Thodium*
+
+
