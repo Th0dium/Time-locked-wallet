@@ -1,6 +1,6 @@
 # Time-Locked Wallet (Solana + Anchor)
 
-A minimal **time-locked SOL vault** built on Solana using Anchor, with a simple Next.js frontend.  
+A **time-locked SOL vault** built on Solana using Anchor, with a simple Next.js frontend.  
 Supports an optional administrator (*authority*) with granular rights.  
 Deployed to Devnet with a live demo.
 
@@ -55,6 +55,7 @@ You can try administrator actions without switching wallets by setting yourself 
 
 Notes:
 - Admin edits are disabled after withdrawal (`amount == 0`).
+- Timezone selector: included as a temporary workaround for local/browser timezone inconsistencies when composing unlock timestamps. It is not strictly required but I didn't remove it because I want to make sure the unlock timestamp is correct.
 - Vault deletion is not mandatory
 
 ## ⚡ Quick Start (Devnet, Pre‑deployed Program)
@@ -120,7 +121,7 @@ npm run dev
 
 5) Open http://localhost:3000 and connect a wallet (switched to devnet).
 
-## Testing
+## Testing (optional)
 
   Run tests (Mocha/Chai)
 - Location: `tests/simple.spec.ts` — covers input validations, lifecycle (initialize → withdraw after unlock → close), and admin rights bitmask.  
@@ -282,7 +283,7 @@ This project was built as a submission for the Solana Developer Talent Layer bou
 - [ ] Use USDC (SPL token) instead of just SOL
 
 
-What started as a 7-day beginner bounty became a comprehensive DeFi primitive that goes beyond the basic requirements.
+What started as a 7-day beginner bounty became a overcomplicated DeFi project that goes beyond the basic requirements.
 ### **📬 Contact**
 - Developer: Thodium
 - My gmail: nhatduy3354@gmail.com
@@ -292,5 +293,4 @@ What started as a 7-day beginner bounty became a comprehensive DeFi primitive th
 - Project link: https://github.com/Th0dium/Time-locked-wallet
 
 *built with ❤️ and lots of coffee by Thodium* 😎
-
 
