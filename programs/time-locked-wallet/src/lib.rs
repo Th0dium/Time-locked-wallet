@@ -75,8 +75,8 @@ pub mod time_locked_wallet {
         require!(vault_balance >= amount, TimeLockError::InsufficientFunds);
 
         // Transfer SOL from vault PDA to receiver
-        let mut vault_ai = vault.to_account_info();
-        let mut receiver_ai = ctx.accounts.receiver.to_account_info();
+        let vault_ai = vault.to_account_info();
+        let receiver_ai = ctx.accounts.receiver.to_account_info();
         **vault_ai.try_borrow_mut_lamports()? -= amount;
         **receiver_ai.try_borrow_mut_lamports()? += amount;
 

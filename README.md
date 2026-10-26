@@ -49,7 +49,7 @@ You can try administrator actions without switching wallets by setting yourself 
   1. Create a vault with: amount 0.1 SOL, `unlock` = now + 2 minutes, `receiver` = any valid pubkey that is NOT your wallet (e.g., your pubkey but mistyped), `authority` = your wallet, authority rights = `Change receiver` (or `both`).
   2. Open the Withdraw tab, there would be no vault shown.
   3. Go to Administrator tab: set receiver to your wallet and click `Set Receiver`.
-  3. Withdraw tab: the vault now appears under your address; wait for unlock and withdraw.
+  4. Withdraw tab: the vault now appears under your address; wait for unlock and withdraw.
 
 ![Demo Screenshot](./Pics/admin.png)
 
@@ -98,21 +98,19 @@ solana airdrop 2
 
 2) Build and deploy the Anchor program (Devnet)
 ```
-anchor build
+anchor build      # first build generates your program keypair
+anchor keys sync  # writes your new program ID into declare_id!() and Anchor.toml
+anchor build      # rebuild with the updated program ID
 anchor deploy
 ```
-Copy the printed `Program Id` or use: 
-`solana address -k target/deploy/time_locked_wallet-keypair.json`
+The program ID must be synced before deploying, otherwise every instruction fails with `DeclaredProgramIdMismatch`.
 
-3) Update the program ID in multiple files
-- Update the program ID in [programs.devnet] in Anchor.toml
-- Edit `programs/time-locked-wallet/src/lib.rs` and update the declare_id!() macro
-- Edit `frontend/src/utils/anchor.ts` and set `PROGRAM_ID` to your new program id.
+3) Point the frontend at your program
+- Edit `frontend/src/utils/anchor.ts` and set `PROGRAM_ID` to your new program id (`solana address -k target/deploy/time_locked_wallet-keypair.json`).
 - Update `frontend/src/idl/time_locked_wallet.json` with the freshly built IDL from `target/idl/time_locked_wallet.json` (replace the file).
 
-4) Rebuild and run the frontend
+4) Run the frontend
 ```
-anchor build # Rebuild with updated program ID
 cd frontend
 npm install
 echo NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com > .env.local
@@ -156,7 +154,7 @@ Thanks to its **flexible role design** (creator, optional authority, and receive
 
 - **DAO treasury disbursement**  
   - DAO members deposit SOL into a vault with a fixed unlock date.  
-  - Authority (multisig) may extend or cancel before funds are released.  
+  - Authority (multisig) may extend the lock or change the receiver before funds are released.  
 
 - **Trust funds or parental savings**  
   - Parents (creator) lock funds for a child (receiver).  
@@ -190,13 +188,13 @@ This flexibility allows the program to adapt to **different governance and trust
   +-----------------------------------------------------------------+
                         |                           Ʌ
                         |                           |
-                Authority (if exit) => set_receiver or set_duration 
+                Authority (if exists) => set_receiver or set_duration 
                         |
                         | now < unlock_timestamp
                         v
                   Receiver withdraw -> Fail
                         |
-                        | now > unlock_timestamp
+                        | now >= unlock_timestamp
                         v
                   Receiver withdraw -> Success
                         |
@@ -283,7 +281,7 @@ This project was built as a submission for the Solana Developer Talent Layer bou
 - [ ] Use USDC (SPL token) instead of just SOL
 
 
-What started as a 7-day beginner bounty became a overcomplicated DeFi project that goes beyond the basic requirements.
+What started as a 7-day beginner bounty became an overcomplicated DeFi project that goes beyond the basic requirements.
 ### **📬 Contact**
 - Developer: Thodium
 - My gmail: nhatduy3354@gmail.com
